@@ -5,13 +5,15 @@ import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
 
 // Controlla come mostrare la notifica quando l'app è in foreground.
-// shouldShowAlert: true → mostra il banner anche se l'app è aperta.
+// shouldShowBanner: true → mostra il banner anche se l'app è aperta.
+// shouldShowList: true → tiene la notifica nel centro notifiche.
 // Con le emergenze vogliamo il banner + suono anche in foreground.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge:  false,
+    shouldShowBanner: true,
+    shouldShowList:   true,
+    shouldPlaySound:  true,
+    shouldSetBadge:   false,
   }),
 });
 
@@ -53,9 +55,7 @@ export default function RootLayout() {
     );
 
     return () => {
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      responseListener.current?.remove();
     };
   }, []);
 
@@ -72,6 +72,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index"    options={{ headerShown: false }} />
         <Stack.Screen name="login"    options={{ title: "GrappaSafe", headerShown: false }} />
+        <Stack.Screen name="register" options={{ title: "Registrati" }} />
         <Stack.Screen name="dashboard" options={{ title: "Dashboard", headerBackVisible: false }} />
         <Stack.Screen name="activity" options={{ title: "Scegli attività" }} />
         <Stack.Screen name="tracking" options={{ title: "In volo", headerBackVisible: false }} />

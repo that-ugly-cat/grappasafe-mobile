@@ -17,12 +17,12 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "GrappaSafe monitora la tua posizione durante l'attività outdoor per la tua sicurezza.",
         "NSLocationWhenInUseUsageDescription": "GrappaSafe usa la tua posizione per il monitoraggio di sicurezza.",
         "NSMotionUsageDescription": "GrappaSafe usa l'accelerometro per rilevare impatti.",
-        "NSUserNotificationUsageDescription": "GrappaSafe usa le notifiche per gli allarmi di emergenza."
-      },
-      "backgroundModes": [
-        "location",
-        "fetch"
-      ]
+        "NSUserNotificationUsageDescription": "GrappaSafe usa le notifiche per gli allarmi di emergenza.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
     },
     "android": {
       "package": "eu.borant.grappasafe",
@@ -54,7 +54,8 @@
           "sounds": []
         }
       ],
-      "expo-router"
+      "expo-router",
+      "expo-asset"
     ],
     "scheme": "grappasafe"
   }
