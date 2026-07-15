@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "GrappaSafe",
+    "slug": "grappasafe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "eu.borant.grappasafe",
+      "infoPlist": {
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GrappaSafe monitora la tua posizione durante l'attività outdoor per la tua sicurezza.",
+        "NSLocationWhenInUseUsageDescription": "GrappaSafe usa la tua posizione per il monitoraggio di sicurezza.",
+        "NSMotionUsageDescription": "GrappaSafe usa l'accelerometro per rilevare impatti.",
+        "NSUserNotificationUsageDescription": "GrappaSafe usa le notifiche per gli allarmi di emergenza."
+      },
+      "backgroundModes": [
+        "location",
+        "fetch"
+      ]
+    },
+    "android": {
+      "package": "eu.borant.grappasafe",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "GrappaSafe monitora la tua posizione durante l'attività outdoor.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#e63946",
+          "sounds": []
+        }
+      ],
+      "expo-router"
+    ],
+    "scheme": "grappasafe"
+  }
+}
