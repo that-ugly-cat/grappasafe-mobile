@@ -178,7 +178,10 @@ export default function SettingsScreen() {
       {/* Frequenza pin */}
       <View style={s.divider} />
       <Text style={s.section}>Frequenza aggiornamento pin</Text>
-      <Text style={s.hint}>Ogni quanto l'app invia la posizione.</Text>
+      <Text style={s.hint}>
+        Ogni quanto l'app invia la posizione. Frequenza più alta = traccia più
+        precisa, ma maggiore consumo di batteria.
+      </Text>
       <View style={s.chips}>
         {INTERVAL_PRESETS_S.map((sec) => {
           const active = intervalS === sec;
