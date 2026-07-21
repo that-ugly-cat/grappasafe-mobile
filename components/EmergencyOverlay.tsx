@@ -156,7 +156,7 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
 const s = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(155,20,30,0.97)",
+    backgroundColor: "#9b141e",
     alignItems: "center",
     justifyContent: "center",
     padding: 32,
