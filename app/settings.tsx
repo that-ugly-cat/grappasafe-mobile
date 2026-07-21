@@ -8,7 +8,9 @@ import {
   loadSettings, saveSettings, Settings, DEFAULT_SETTINGS, saveUser,
   clearUser, clearSession,
 } from "../lib/store";
-import { getMe, updateMe, logout, Profile } from "../lib/api";
+import {
+  getMe, updateMe, logout, getDevices, saveDevice, deleteDevice, Profile, Device,
+} from "../lib/api";
 import {
   isMapDownloaded, downloadMap, deleteMap, getLocalManifest,
 } from "../lib/tiles";
@@ -33,9 +35,16 @@ export default function SettingsScreen() {
   const [tileCount, setTileCount] = useState<number | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [showDeviceForm, setShowDeviceForm] = useState(false);
+  const [editDevId, setEditDevId] = useState<number | null>(null);
+  const [devName, setDevName] = useState("");
+  const [devOgn, setDevOgn] = useState("");
+  const [savingDevice, setSavingDevice] = useState(false);
 
   useEffect(() => {
     loadSettings().then(setSettings);
+    refreshDevices();
     getMe().then((me) => {
       if (me) {
         setProfile({
@@ -54,6 +63,59 @@ export default function SettingsScreen() {
     const ready = await isMapDownloaded();
     setMapReady(ready);
     setTileCount(ready ? (await getLocalManifest())?.count ?? null : null);
+  }
+
+  async function refreshDevices() {
+    setDevices(await getDevices());
+  }
+
+  function openAddDevice() {
+    setEditDevId(null);
+    setDevName("");
+    setDevOgn("");
+    setShowDeviceForm(true);
+  }
+
+  function openEditDevice(d: Device) {
+    setEditDevId(d.id);
+    setDevName(d.display_name);
+    setDevOgn(d.ogn_id || "");
+    setShowDeviceForm(true);
+  }
+
+  async function saveDeviceForm() {
+    if (!devName.trim()) {
+      Alert.alert("Attenzione", "Il nome della vela è obbligatorio");
+      return;
+    }
+    setSavingDevice(true);
+    try {
+      const ok = await saveDevice(
+        { display_name: devName.trim(), ogn_id: devOgn.trim() || undefined },
+        editDevId ?? undefined
+      );
+      if (!ok) throw new Error();
+      setShowDeviceForm(false);
+      await refreshDevices();
+    } catch {
+      Alert.alert("Errore", "Impossibile salvare il device");
+    } finally {
+      setSavingDevice(false);
+    }
+  }
+
+  function removeDevice(id: number) {
+    Alert.alert("Elimina", "Eliminare questa vela/device?", [
+      { text: "Annulla", style: "cancel" },
+      {
+        text: "Elimina",
+        style: "destructive",
+        onPress: async () => {
+          await deleteDevice(id);
+          await refreshDevices();
+        },
+      },
+    ]);
   }
 
   async function update(patch: Partial<Settings>) {
@@ -139,6 +201,51 @@ export default function SettingsScreen() {
       <TouchableOpacity style={[s.btn, savingProfile && s.btnDisabled]} onPress={handleSaveProfile} disabled={savingProfile}>
         <Text style={s.btnText}>{savingProfile ? "Salvataggio…" : "Salva profilo"}</Text>
       </TouchableOpacity>
+
+      {/* Vela / device */}
+      <View style={s.divider} />
+      <Text style={s.section}>La tua vela / device</Text>
+      <Text style={s.hint}>
+        Nome della vela (es. "Vela rossa, Ozone Rush") e, se hai un FLARM/OGN, il suo ID.
+        Compare ai soccorsi in caso di emergenza.
+      </Text>
+      {devices.map((d) => (
+        <View key={d.id} style={s.deviceRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.deviceName}>{d.display_name}</Text>
+            {d.ogn_id ? <Text style={s.hint}>OGN/FLARM: {d.ogn_id}</Text> : null}
+          </View>
+          <TouchableOpacity onPress={() => openEditDevice(d)}>
+            <Text style={s.linkAction}>Modifica</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => removeDevice(d.id)}>
+            <Text style={s.linkDanger}>Elimina</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+      {showDeviceForm ? (
+        <View style={{ marginTop: 8 }}>
+          <TextInput
+            style={s.input} placeholder='Nome vela / device' placeholderTextColor="#666"
+            value={devName} onChangeText={setDevName}
+          />
+          <TextInput
+            style={s.input} placeholder="ID OGN/FLARM (opzionale)" placeholderTextColor="#666"
+            autoCapitalize="characters" autoCorrect={false}
+            value={devOgn} onChangeText={setDevOgn}
+          />
+          <TouchableOpacity style={[s.btn, savingDevice && s.btnDisabled]} onPress={saveDeviceForm} disabled={savingDevice}>
+            <Text style={s.btnText}>{savingDevice ? "Salvataggio…" : "Salva"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.btnGhost} onPress={() => setShowDeviceForm(false)}>
+            <Text style={s.btnGhostText}>Annulla</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity style={s.btnGhost} onPress={openAddDevice}>
+          <Text style={s.linkAction}>+ Aggiungi vela / device</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Mappa */}
       <View style={s.divider} />
@@ -248,6 +355,13 @@ const s = StyleSheet.create({
   btnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   btnGhost: { padding: 14, alignItems: "center", marginTop: 4 },
   btnGhostText: { color: "#888", fontSize: 14, textDecorationLine: "underline" },
+  deviceRow: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#222",
+  },
+  deviceName: { color: "#eee", fontSize: 15, fontWeight: "600" },
+  linkAction: { color: "#e63946", fontSize: 14, fontWeight: "600" },
+  linkDanger: { color: "#888", fontSize: 14 },
   progressWrap: { marginTop: 16 },
   progressBar: { height: 10, borderRadius: 5, backgroundColor: "#1e1e30", overflow: "hidden" },
   progressFill: { height: 10, backgroundColor: "#e63946" },

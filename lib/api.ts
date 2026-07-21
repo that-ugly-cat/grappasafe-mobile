@@ -270,6 +270,49 @@ export async function getMe(): Promise<Profile | null> {
   }
 }
 
+export interface Device {
+  id: number;
+  display_name: string;
+  ogn_id: string | null;
+  activity: string | null;
+  color: string;
+}
+
+/** I device/vele dell'utente (nome + eventuale ID OGN/FLARM). */
+export async function getDevices(): Promise<Device[]> {
+  try {
+    const res = await request("/api/me/devices");
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function saveDevice(
+  d: { display_name: string; ogn_id?: string },
+  id?: number
+): Promise<boolean> {
+  try {
+    const res = await request(id ? `/api/me/devices/${id}` : "/api/me/devices", {
+      method: id ? "PUT" : "POST",
+      body: JSON.stringify(d),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteDevice(id: number): Promise<boolean> {
+  try {
+    const res = await request(`/api/me/devices/${id}`, { method: "DELETE" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Aggiorna i campi profilo modificabili dall'utente (self-service). */
 export async function updateMe(
   profile: Partial<Omit<Profile, "id" | "username" | "is_admin">>
