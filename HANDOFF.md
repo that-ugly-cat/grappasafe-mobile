@@ -1,10 +1,33 @@
 # GrappaSafe — Handoff per il giro sull'app mobile
 
-*Aggiornato: 14 luglio 2026*
+*Aggiornato: 17 luglio 2026*
 
 Documento di passaggio di consegne. Il lavoro sulla **webapp** (backend + pannelli
 admin/observer/user + OGN + emergenze + retention + mobile responsive) è chiuso e
 in produzione su `grappasafe.borant.eu`. Il prossimo giro è sull'**app mobile**.
+
+---
+
+## 0. Stato al 17 luglio 2026
+
+Primo giro sull'app mobile eseguito su una macchina nuova (Android + Expo Go):
+
+- **Toolchain** installata da zero (Node, dipendenze, peer deps native mancanti reintegrate).
+- **Upgrade SDK 52 → 54** (React Native 0.81, React 19). Migrati i breaking change di
+  `expo-notifications` (`shouldShowBanner`/`shouldShowList`, `subscription.remove()`) e corretto
+  il background mode iOS in `infoPlist.UIBackgroundModes`.
+- **Login validato su device.** Bug trovato e risolto: su Android il campo password veniva
+  auto-capitalizzato, così la password arrivava alterata e il server rispondeva 401. Fix:
+  `autoCapitalize="none"` + `autoCorrect={false}` sui campi sensibili.
+- **Auto-registrazione pubblica** aggiunta: schermata mobile `register.tsx` + nuovo endpoint webapp
+  `POST /api/register` (ruolo forzato a `user` server-side).
+- **Logo del consorzio** nella schermata di login.
+- Verificati su Android/Expo Go: login, registrazione, avvio sessione, invio GPS, **mappa live**
+  (`react-native-maps` funziona sotto la nuova architecture di RN 0.81).
+
+Restano aperti dalla lista sotto: background affidabile via dev build (§3.4), calibrazione soglia
+impatto (§3.3), distribuzione EAS (§3.5), attività `GLIDER` (§3.6), `battery_pct` (§3.7). Il flusso
+emergenza end-to-end (§3.2) va testato con la dev build, non con Expo Go.
 
 ---
 
