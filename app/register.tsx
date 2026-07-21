@@ -50,7 +50,7 @@ export default function RegisterScreen() {
         return;
       }
       await saveUser(me);
-      router.replace("/dashboard");
+      router.replace("/map");
     } catch (e) {
       Alert.alert("Errore di rete", "Impossibile contattare il server");
     } finally {

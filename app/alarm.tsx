@@ -113,7 +113,7 @@ export default function AlarmScreen() {
       await cancelEmergency();
     } catch { /* server lo gestisce anche senza risposta */ }
     await clearLocalState();
-    router.replace("/tracking");
+    router.replace("/map");
   }
 
   async function handleConfirm() {
@@ -128,7 +128,7 @@ export default function AlarmScreen() {
       );
     } catch { /* server auto-conferma comunque dopo il timeout */ }
     await clearLocalState();
-    router.replace("/tracking");
+    router.replace("/map");
   }
 
   const minutes = Math.floor(countdown / 60);

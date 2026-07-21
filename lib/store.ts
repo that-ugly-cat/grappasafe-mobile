@@ -13,6 +13,8 @@ export interface Settings {
   gpsIntervalMs: number;
   /** Avvisa l'utente quando esce dal cerchio monitorato. */
   outOfZoneAlerts: boolean;
+  /** Usa le tile locali (offline) invece di OpenTopoMap online. */
+  mapOffline: boolean;
 }
 
 export const GPS_INTERVAL_MIN_MS = 5_000;
@@ -21,7 +23,20 @@ export const GPS_INTERVAL_MAX_MS = 60_000;
 export const DEFAULT_SETTINGS: Settings = {
   gpsIntervalMs: 15_000,
   outOfZoneAlerts: true,
+  mapOffline: false,
 };
+
+/** Messaggio d'emergenza di fallback, se il server non è mai stato raggiunto. */
+export const EMERGENCY_FALLBACK_MSG = "Resta dove sei, i soccorsi sono in arrivo.";
+
+export async function saveEmergencyMessage(msg: string) {
+  if (msg) await AsyncStorage.setItem("gs_em_msg", msg);
+}
+
+export async function loadEmergencyMessage(): Promise<string> {
+  const raw = await AsyncStorage.getItem("gs_em_msg");
+  return raw || EMERGENCY_FALLBACK_MSG;
+}
 
 export async function loadSettings(): Promise<Settings> {
   const raw = await AsyncStorage.getItem(KEYS.SETTINGS);

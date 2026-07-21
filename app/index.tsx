@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
-import { loadUser, loadSession } from "../lib/store";
+import { loadUser } from "../lib/store";
 import { getMe } from "../lib/api";
 
 export default function SplashRedirect() {
@@ -18,12 +18,8 @@ export default function SplashRedirect() {
         router.replace("/login");
         return;
       }
-      const session = await loadSession();
-      if (session) {
-        router.replace("/tracking");
-      } else {
-        router.replace("/dashboard");
-      }
+      // La MapScreen gestisce da sé lo stato (idle / live / emergency).
+      router.replace("/map");
     })();
   }, []);
 

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
 
 // Controlla come mostrare la notifica quando l'app è in foreground.
@@ -60,7 +61,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -73,10 +74,8 @@ export default function RootLayout() {
         <Stack.Screen name="index"    options={{ headerShown: false }} />
         <Stack.Screen name="login"    options={{ title: "GrappaSafe", headerShown: false }} />
         <Stack.Screen name="register" options={{ title: "Registrati" }} />
-        <Stack.Screen name="dashboard" options={{ title: "Dashboard", headerBackVisible: false }} />
+        <Stack.Screen name="map"      options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: "Impostazioni" }} />
-        <Stack.Screen name="activity" options={{ title: "Scegli attività" }} />
-        <Stack.Screen name="tracking" options={{ title: "In volo", headerBackVisible: false }} />
         <Stack.Screen
           name="alarm"
           options={{
@@ -87,6 +86,6 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

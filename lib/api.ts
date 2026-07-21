@@ -5,6 +5,7 @@ export const API_BASE = "https://grappasafe.borant.eu";
 export type Attivita =
   | "PARAGLIDER"
   | "HANGGLIDER"
+  | "GLIDER"
   | "CYCLIST"
   | "CLIMBER"
   | "HIKER"
@@ -155,16 +156,38 @@ export async function cancelEmergency(): Promise<void> {
   if (!res.ok) throw new Error(`cancelEmergency: ${res.status}`);
 }
 
+/** Invia un SOS manuale. Il server gestisce sia il caso con sessione attiva
+ *  sia senza. Ritorna il messaggio da mostrare all'utente (se presente). */
 export async function sendEmergency(
   lat: number,
   lon: number,
   alt_m: number | null
-): Promise<void> {
+): Promise<{ message?: string }> {
   const res = await request("/api/emergency", {
     method: "POST",
     body: JSON.stringify({ lat, lon, alt_m }),
   });
   if (!res.ok) throw new Error(`sendEmergency: ${res.status}`);
+  return (await res.json().catch(() => ({}))) as { message?: string };
+}
+
+export interface EmergencyStatus {
+  active: boolean;
+  emergency_id?: number;
+  since?: string;
+  message: string;
+}
+
+/** Stato dell'emergenza dell'utente. L'app lo polla per tenere su l'overlay
+ *  rosso finché il server non risolve. */
+export async function emergencyStatus(): Promise<EmergencyStatus | null> {
+  try {
+    const res = await request("/api/emergency/status");
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 export interface SessionStatus {
@@ -203,18 +226,41 @@ export async function getConfig(): Promise<AreaConfig | null> {
   }
 }
 
-export async function getMe(): Promise<{
+export interface Profile {
   id: number;
   username: string;
   nome: string;
   cognome: string;
   is_admin: boolean;
-} | null> {
+  telefono: string;
+  gruppo_sanguigno: string;
+  emergenza_contatto: string;
+  emergenza_telefono: string;
+  note_salute: string;
+  lingua: string;
+}
+
+export async function getMe(): Promise<Profile | null> {
   try {
     const res = await request("/api/me");
     if (res.status === 401) return null;
     return res.json();
   } catch {
     return null;
+  }
+}
+
+/** Aggiorna i campi profilo modificabili dall'utente (self-service). */
+export async function updateMe(
+  profile: Partial<Omit<Profile, "id" | "username" | "is_admin">>
+): Promise<boolean> {
+  try {
+    const res = await request("/api/me", {
+      method: "PUT",
+      body: JSON.stringify(profile),
+    });
+    return res.ok;
+  } catch {
+    return false;
   }
 }
