@@ -3,14 +3,16 @@ import {
   View, Text, TouchableOpacity, StyleSheet, Alert,
 } from "react-native";
 import { router } from "expo-router";
-import { logout } from "../lib/api";
-import { loadUser, clearUser, clearSession } from "../lib/store";
+import { logout, getConfig } from "../lib/api";
+import { loadUser, clearUser, clearSession, saveAreaConfig } from "../lib/store";
 
 export default function DashboardScreen() {
   const [user, setUser] = useState<{ nome: string; cognome: string; username: string } | null>(null);
 
   useEffect(() => {
     loadUser().then(setUser);
+    // Aggiorna la cache dell'area monitorata (serve al geofence e alla mappa).
+    getConfig().then((c) => c && saveAreaConfig(c));
   }, []);
 
   async function handleLogout() {
@@ -37,6 +39,13 @@ export default function DashboardScreen() {
         <Text style={s.bigBtnText}>Inizia sessione</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={s.settingsBtn}
+        onPress={() => router.push("/settings")}
+      >
+        <Text style={s.settingsText}>⚙  Impostazioni</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
         <Text style={s.logoutText}>Esci</Text>
       </TouchableOpacity>
@@ -55,6 +64,8 @@ const s = StyleSheet.create({
   },
   bigBtnIcon: { fontSize: 48, marginBottom: 12 },
   bigBtnText: { color: "#e63946", fontSize: 22, fontWeight: "bold" },
-  logoutBtn: { marginTop: "auto", padding: 16, alignItems: "center" },
+  settingsBtn: { marginTop: "auto", padding: 16, alignItems: "center" },
+  settingsText: { color: "#888", fontSize: 15 },
+  logoutBtn: { padding: 12, alignItems: "center" },
   logoutText: { color: "#555", fontSize: 14 },
 });

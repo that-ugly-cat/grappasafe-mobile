@@ -185,6 +185,24 @@ export async function getSessionStatus(): Promise<SessionStatus | null> {
   }
 }
 
+export interface AreaConfig {
+  area_lat: number;
+  area_lon: number;
+  area_radius_km: number;
+}
+
+/** Configurazione dal server: il cerchio monitorato (centro + raggio).
+ *  L'app non hardcoda l'area, la legge da qui e la cachea. */
+export async function getConfig(): Promise<AreaConfig | null> {
+  try {
+    const res = await request("/api/config");
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function getMe(): Promise<{
   id: number;
   username: string;

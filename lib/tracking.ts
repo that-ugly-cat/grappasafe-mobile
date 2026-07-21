@@ -4,9 +4,11 @@ import * as TaskManager from "expo-task-manager";
 import { Accelerometer } from "expo-sensors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendGps, sendEmergency, GpsPayload } from "./api";
+import { loadSettings, loadAreaConfig } from "./store";
 
 export const LOCATION_TASK = "grappasafe-location";
-const GPS_INTERVAL_MS = 15_000;
+const GPS_INTERVAL_FALLBACK_MS = 15_000;
+const OUT_OF_ZONE_RENOTIFY_MS = 5 * 60_000; // ri-avvisa al più ogni 5 minuti
 
 // L'impatto lo decide il server, con una soglia per attività. L'app manda il
 // PICCO di accelerazione dall'ultimo invio GPS (non l'istantaneo), così lo
@@ -39,6 +41,52 @@ function motionState(
   return "STATIONARY";
 }
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const p1 = (lat1 * Math.PI) / 180;
+  const p2 = (lat2 * Math.PI) / 180;
+  const dp = ((lat2 - lat1) * Math.PI) / 180;
+  const dl = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dp / 2) ** 2 +
+    Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+// Geofence "sei fuori zona". Confronta la posizione col cerchio monitorato
+// (cache scritta da getConfig). Scrive un flag per il banner del tracking e,
+// se abilitato, manda una notifica locale con debounce.
+async function checkGeofence(lat: number, lon: number): Promise<void> {
+  const area = await loadAreaConfig();
+  if (!area) return; // area sconosciuta finché non arriva da /api/config
+  const dist = haversineKm(lat, lon, area.area_lat, area.area_lon);
+  const outside = dist > area.area_radius_km;
+
+  await AsyncStorage.setItem("out_of_zone", outside ? "1" : "0");
+  if (!outside) {
+    await AsyncStorage.removeItem("out_of_zone_notified");
+    return;
+  }
+
+  const settings = await loadSettings();
+  if (!settings.outOfZoneAlerts) return;
+
+  const last = await AsyncStorage.getItem("out_of_zone_notified");
+  const now = Date.now();
+  if (last && now - Number(last) < OUT_OF_ZONE_RENOTIFY_MS) return;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "⚠️ Fuori dalla zona monitorata",
+      body: `Sei a ${dist.toFixed(1)} km dal centro (raggio ${area.area_radius_km} km). Il monitoraggio automatico potrebbe non coprirti.`,
+      sound: true,
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+    },
+    trigger: null,
+  });
+  await AsyncStorage.setItem("out_of_zone_notified", String(now));
+}
+
 // Il background task viene eseguito da expo-task-manager
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) return;
@@ -62,6 +110,9 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     ts: new Date(loc.timestamp).toISOString(),
   };
   _accelPeak = 1.0; // apri una nuova finestra di picco per il prossimo invio
+
+  // Geofence locale — indipendente dall'esito della rete.
+  await checkGeofence(lat, lon);
 
   try {
     const resp = await sendGps(payload);
@@ -120,9 +171,11 @@ export async function startTracking(): Promise<void> {
   const granted = await requestPermissions();
   if (!granted) throw new Error("Permessi GPS non concessi");
 
+  const settings = await loadSettings();
+
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.BestForNavigation,
-    timeInterval: GPS_INTERVAL_MS,
+    timeInterval: settings.gpsIntervalMs ?? GPS_INTERVAL_FALLBACK_MS,
     distanceInterval: 20,
     foregroundService: {
       notificationTitle: "GrappaSafe attivo",

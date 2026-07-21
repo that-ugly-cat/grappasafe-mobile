@@ -5,9 +5,11 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { endSession, cancelEmergency, getSessionStatus } from "../lib/api";
+import { endSession, cancelEmergency, getSessionStatus, AreaConfig } from "../lib/api";
 import { stopTracking, triggerEmergency, getCurrentPosition } from "../lib/tracking";
-import { loadSession, clearSession, loadUser } from "../lib/store";
+import { loadSession, clearSession, loadUser, loadAreaConfig } from "../lib/store";
+import { isMapDownloaded } from "../lib/tiles";
+import SafeMap from "../components/SafeMap";
 
 const HOLD_MS = 3000;
 
@@ -18,12 +20,28 @@ export default function TrackingScreen() {
   const [elapsed, setElapsed] = useState("00:00");
   const [emergencySent, setEmergencySent] = useState(false);
   const [pauseMsg, setPauseMsg] = useState<string | null>(null);
+  const [area, setArea] = useState<AreaConfig | null>(null);
+  const [offlineReady, setOfflineReady] = useState(false);
+  const [outOfZone, setOutOfZone] = useState(false);
   const holdProgress = useRef(new Animated.Value(0)).current;
   const holdAnim = useRef<Animated.CompositeAnimation | null>(null);
   const holdActive = useRef(false);
 
   useEffect(() => {
     loadSession().then(setSession);
+    loadAreaConfig().then(setArea);
+    isMapDownloaded().then(setOfflineReady);
+  }, []);
+
+  // Legge il flag geofence scritto dal task background per il banner "fuori zona".
+  useEffect(() => {
+    async function readZone() {
+      const v = await AsyncStorage.getItem("out_of_zone");
+      setOutOfZone(v === "1");
+    }
+    readZone();
+    const id = setInterval(readZone, 5_000);
+    return () => clearInterval(id);
   }, []);
 
   // Fix #5 — verifica che la sessione sia ancora viva sul server al mount.
@@ -184,6 +202,15 @@ export default function TrackingScreen() {
         <Text style={s.statusText}>MONITORAGGIO ATTIVO</Text>
       </View>
 
+      {/* Mappa del cerchio monitorato + posizione */}
+      {area && <SafeMap area={area} offlineReady={offlineReady} style={s.map} />}
+
+      {outOfZone && (
+        <View style={s.zoneBanner}>
+          <Text style={s.zoneBannerText}>⚠️ Sei fuori dalla zona monitorata</Text>
+        </View>
+      )}
+
       {/* Info sessione */}
       <View style={s.infoBox}>
         <Text style={s.activityLabel}>
@@ -247,6 +274,12 @@ const s = StyleSheet.create({
     width: 10, height: 10, borderRadius: 5, backgroundColor: "#2ecc71",
   },
   statusText: { color: "#2ecc71", fontSize: 12, fontWeight: "bold", letterSpacing: 2 },
+  map: { width: "100%", height: 200, marginBottom: 12 },
+  zoneBanner: {
+    width: "100%", backgroundColor: "#7a2530", borderRadius: 8,
+    padding: 10, marginBottom: 12,
+  },
+  zoneBannerText: { color: "#fff", fontWeight: "600", textAlign: "center", fontSize: 13 },
   infoBox: { alignItems: "center", marginBottom: 48 },
   activityLabel: { color: "#fff", fontSize: 22, fontWeight: "bold" },
   elapsed: { color: "#e63946", fontSize: 48, fontWeight: "bold", marginTop: 8 },

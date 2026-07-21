@@ -74,6 +74,7 @@ export default function RootLayout() {
         <Stack.Screen name="login"    options={{ title: "GrappaSafe", headerShown: false }} />
         <Stack.Screen name="register" options={{ title: "Registrati" }} />
         <Stack.Screen name="dashboard" options={{ title: "Dashboard", headerBackVisible: false }} />
+        <Stack.Screen name="settings" options={{ title: "Impostazioni" }} />
         <Stack.Screen name="activity" options={{ title: "Scegli attività" }} />
         <Stack.Screen name="tracking" options={{ title: "In volo", headerBackVisible: false }} />
         <Stack.Screen

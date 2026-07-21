@@ -1,9 +1,52 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AreaConfig } from "./api";
 
 const KEYS = {
   USER: "gs_user",
   SESSION: "gs_session",
+  SETTINGS: "gs_settings",
+  AREA: "gs_area",
 };
+
+export interface Settings {
+  /** Intervallo di aggiornamento dei pin GPS, in ms. */
+  gpsIntervalMs: number;
+  /** Avvisa l'utente quando esce dal cerchio monitorato. */
+  outOfZoneAlerts: boolean;
+}
+
+export const GPS_INTERVAL_MIN_MS = 5_000;
+export const GPS_INTERVAL_MAX_MS = 60_000;
+
+export const DEFAULT_SETTINGS: Settings = {
+  gpsIntervalMs: 15_000,
+  outOfZoneAlerts: true,
+};
+
+export async function loadSettings(): Promise<Settings> {
+  const raw = await AsyncStorage.getItem(KEYS.SETTINGS);
+  if (!raw) return DEFAULT_SETTINGS;
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export async function saveSettings(settings: Settings) {
+  await AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+}
+
+/** Cache dell'area monitorata (centro + raggio), scritta da getConfig().
+ *  Serve al geofence nel task in background, che non può fare fetch sincroni. */
+export async function saveAreaConfig(area: AreaConfig) {
+  await AsyncStorage.setItem(KEYS.AREA, JSON.stringify(area));
+}
+
+export async function loadAreaConfig(): Promise<AreaConfig | null> {
+  const raw = await AsyncStorage.getItem(KEYS.AREA);
+  return raw ? JSON.parse(raw) : null;
+}
 
 export interface StoredUser {
   id: number;
