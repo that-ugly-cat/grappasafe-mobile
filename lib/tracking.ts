@@ -190,9 +190,16 @@ export async function startTracking(): Promise<void> {
 }
 
 export async function stopTracking(): Promise<void> {
-  const isRunning = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
-  if (isRunning) {
-    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+  // Stopping can reject even when hasStarted reports true: the task may be
+  // registered under a stale app id (a reload in Expo Go changes the anonymous
+  // app id), which surfaces as TaskNotFound. There is nothing to stop in that
+  // case, so swallow it instead of leaking an unhandled rejection.
+  try {
+    if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+    }
+  } catch {
+    // already gone / registered under a different app instance — ignore
   }
   stopAccelerometer();
 }
