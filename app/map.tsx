@@ -189,7 +189,6 @@ export default function MapScreen() {
         )}
 
         <Pressable style={s.sos} onPress={() => setShowEmergency(true)}>
-          <Text style={s.sosIcon}>🆘</Text>
           <Text style={s.sosText}>SOS</Text>
         </Pressable>
       </View>
@@ -259,6 +258,5 @@ const s = StyleSheet.create({
     borderWidth: 4, borderColor: "#e74c3c",
     elevation: 8, shadowColor: "#e63946", shadowOpacity: 0.7, shadowRadius: 16,
   },
-  sosIcon: { fontSize: 30 },
-  sosText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  sosText: { color: "#fff", fontSize: 28, fontWeight: "bold", letterSpacing: 1 },
 });

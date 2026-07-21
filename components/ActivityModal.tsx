@@ -7,15 +7,15 @@ import { startSession, Attivita } from "../lib/api";
 import { saveSession } from "../lib/store";
 import { startTracking } from "../lib/tracking";
 
-const ACTIVITIES: { id: Attivita; label: string; icon: string }[] = [
-  { id: "PARAGLIDER",      label: "Parapendio",    icon: "🪂" },
-  { id: "HANGGLIDER",      label: "Deltaplano",    icon: "🦅" },
-  { id: "GLIDER",          label: "Aliante",       icon: "🛩" },
-  { id: "CYCLIST",         label: "Ciclismo",      icon: "🚴" },
-  { id: "CLIMBER",         label: "Arrampicata",   icon: "🧗" },
-  { id: "HIKER",           label: "Escursionismo", icon: "🥾" },
-  { id: "RUNNER",          label: "Corsa",         icon: "🏃" },
-  { id: "OTHER_ON_GROUND", label: "Altro",         icon: "🏕" },
+const ACTIVITIES: { id: Attivita; label: string }[] = [
+  { id: "PARAGLIDER",      label: "Parapendio" },
+  { id: "HANGGLIDER",      label: "Deltaplano" },
+  { id: "GLIDER",          label: "Aliante" },
+  { id: "CYCLIST",         label: "Ciclismo" },
+  { id: "CLIMBER",         label: "Arrampicata" },
+  { id: "HIKER",           label: "Escursionismo" },
+  { id: "RUNNER",          label: "Corsa" },
+  { id: "OTHER_ON_GROUND", label: "Altro" },
 ];
 
 interface Props {
@@ -66,10 +66,7 @@ export default function ActivityModal({ visible, onClose, onStarted }: Props) {
                   {busy ? (
                     <ActivityIndicator color="#e63946" />
                   ) : (
-                    <>
-                      <Text style={s.icon}>{a.icon}</Text>
-                      <Text style={s.label}>{a.label}</Text>
-                    </>
+                    <Text style={s.label}>{a.label}</Text>
                   )}
                 </TouchableOpacity>
               );
@@ -99,8 +96,7 @@ const s = StyleSheet.create({
     minHeight: 96, justifyContent: "center",
   },
   cardBusy: { borderColor: "#e63946" },
-  icon: { fontSize: 34, marginBottom: 6 },
-  label: { color: "#ccc", fontSize: 14, textAlign: "center" },
+  label: { color: "#eee", fontSize: 17, textAlign: "center", fontWeight: "600" },
   cancel: { marginTop: 16, padding: 14, alignItems: "center" },
   cancelText: { color: "#888", fontSize: 15 },
 });
