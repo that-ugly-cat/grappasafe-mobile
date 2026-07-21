@@ -23,6 +23,7 @@ interface Props {
 export default function EmergencyOverlay({ onClose, initialSent }: Props) {
   const [phase, setPhase] = useState<Phase>(initialSent ? "sent" : "arming");
   const [message, setMessage] = useState(EMERGENCY_FALLBACK_MSG);
+  const [acknowledged, setAcknowledged] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef<Animated.CompositeAnimation | null>(null);
@@ -47,6 +48,7 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
         setMessage(st.message);
         saveEmergencyMessage(st.message);
       }
+      setAcknowledged(!!st.acknowledged);
       if (!st.active) onClose();
     }
     poll();
@@ -132,10 +134,19 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
         <>
           <Text style={s.sentTitle}>EMERGENZA INVIATA</Text>
           <Text style={s.sentMsg}>{message}</Text>
-          <View style={s.pulse}>
-            <ActivityIndicator color="#fff" />
-            <Text style={s.waiting}>Soccorsi allertati · resta dove sei</Text>
-          </View>
+          {acknowledged ? (
+            <View style={s.ackBox}>
+              <Text style={s.ackTitle}>✓ Presa in carico</Text>
+              <Text style={s.ackText}>
+                Un operatore ha visto la tua richiesta di soccorso e la sta gestendo.
+              </Text>
+            </View>
+          ) : (
+            <View style={s.pulse}>
+              <ActivityIndicator color="#fff" />
+              <Text style={s.waiting}>Allerta inviata · in attesa di risposta</Text>
+            </View>
+          )}
         </>
       )}
     </View>
@@ -167,4 +178,11 @@ const s = StyleSheet.create({
   sentMsg: { color: "#fff", fontSize: 20, textAlign: "center", lineHeight: 28, fontWeight: "600" },
   pulse: { alignItems: "center", marginTop: 40, gap: 12 },
   waiting: { color: "#ffdada", fontSize: 14 },
+  ackBox: {
+    marginTop: 32, backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 12, padding: 18, alignItems: "center",
+  },
+  ackTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 6 },
+  ackText: { color: "#fff", fontSize: 15, textAlign: "center", lineHeight: 21 },
 });
+

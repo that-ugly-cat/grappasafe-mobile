@@ -175,6 +175,8 @@ export interface EmergencyStatus {
   active: boolean;
   emergency_id?: number;
   since?: string;
+  /** true quando un operatore ha preso in carico l'emergenza. */
+  acknowledged?: boolean;
   message: string;
 }
 
