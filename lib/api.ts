@@ -228,6 +228,24 @@ export async function getConfig(): Promise<AreaConfig | null> {
   }
 }
 
+export interface LiveMap {
+  active: boolean;
+  track?: { lat: number; lon: number }[];
+  latest?: { lat: number; lon: number } | null;
+}
+
+/** Mappa live pubblica: la traccia della sessione attiva, via lo share_token.
+ *  È lo stesso endpoint che alimenta il link condivisibile. */
+export async function getLiveMap(shareToken: string): Promise<LiveMap | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/map/${shareToken}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export interface Profile {
   id: number;
   username: string;

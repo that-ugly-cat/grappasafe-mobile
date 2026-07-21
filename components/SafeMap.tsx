@@ -6,6 +6,7 @@ import { AreaConfig } from "../lib/api";
 interface Props {
   area: AreaConfig;
   offlineReady: boolean;
+  track?: { latitude: number; longitude: number }[];
   style?: object;
 }
 interface State {

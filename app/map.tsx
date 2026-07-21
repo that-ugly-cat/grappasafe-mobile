@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  getConfig, getMe, emergencyStatus, endSession, getSessionStatus,
+  getConfig, getMe, emergencyStatus, endSession, getSessionStatus, getLiveMap,
   AreaConfig, Attivita, API_BASE,
 } from "../lib/api";
 import {
@@ -41,6 +41,7 @@ export default function MapScreen() {
   const [showEmergency, setShowEmergency] = useState(false);
   const [emergencyInitialSent, setEmergencyInitialSent] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
+  const [track, setTrack] = useState<{ latitude: number; longitude: number }[]>([]);
 
   // Setup iniziale: area (cache + refresh dal server), modalità mappa, sessione,
   // e se c'è già un'emergenza aperta riapre l'overlay.
@@ -104,6 +105,33 @@ export default function MapScreen() {
     const id = setInterval(checkPending, 5_000);
     return () => clearInterval(id);
   }, [session]);
+
+  // Traccia della sessione attiva (dallo stesso endpoint del link condiviso).
+  // Il poll aggiorna la traccia e, se il server ha chiuso la sessione, si
+  // riallinea (utile a schermo acceso, es. emergenza risolta da un operatore).
+  useEffect(() => {
+    if (!session || !shareToken) {
+      setTrack([]);
+      return;
+    }
+    let alive = true;
+    async function poll() {
+      const m = await getLiveMap(shareToken!);
+      if (!alive || !m) return;
+      if (!m.active) {
+        setTrack([]);
+        syncServerSession();
+        return;
+      }
+      setTrack((m.track ?? []).map((p) => ({ latitude: p.lat, longitude: p.lon })));
+    }
+    poll();
+    const id = setInterval(poll, 15_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [session, shareToken]);
 
   function onActivityStarted(_a: Attivita) {
     setShowActivity(false);
@@ -178,6 +206,7 @@ export default function MapScreen() {
         <SafeMap
           area={area}
           offlineReady={offlineReady}
+          track={track}
           style={[StyleSheet.absoluteFillObject, s.mapFull]}
         />
       ) : (

@@ -3,10 +3,12 @@ import {
   View, Text, TextInput, TouchableOpacity, Switch, ScrollView,
   StyleSheet, Alert, ActivityIndicator,
 } from "react-native";
+import { router } from "expo-router";
 import {
   loadSettings, saveSettings, Settings, DEFAULT_SETTINGS, saveUser,
+  clearUser, clearSession,
 } from "../lib/store";
-import { getMe, updateMe, Profile } from "../lib/api";
+import { getMe, updateMe, logout, Profile } from "../lib/api";
 import {
   isMapDownloaded, downloadMap, deleteMap, getLocalManifest,
 } from "../lib/tiles";
@@ -77,6 +79,13 @@ export default function SettingsScreen() {
     } finally {
       setSavingProfile(false);
     }
+  }
+
+  async function handleLogout() {
+    await logout();
+    await clearUser();
+    await clearSession();
+    router.replace("/login");
   }
 
   async function handleDownload() {
@@ -195,6 +204,12 @@ export default function SettingsScreen() {
         <Switch value={settings.outOfZoneAlerts} onValueChange={(v) => update({ outOfZoneAlerts: v })}
           trackColor={{ true: "#e63946", false: "#333" }} thumbColor="#fff" />
       </View>
+
+      {/* Logout */}
+      <View style={s.divider} />
+      <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+        <Text style={s.logoutText}>Esci dall'account</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -233,4 +248,9 @@ const s = StyleSheet.create({
   progressWrap: { marginTop: 16 },
   progressBar: { height: 10, borderRadius: 5, backgroundColor: "#1e1e30", overflow: "hidden" },
   progressFill: { height: 10, backgroundColor: "#e63946" },
+  logoutBtn: {
+    padding: 14, alignItems: "center", borderRadius: 10,
+    borderWidth: 1, borderColor: "#5a2530",
+  },
+  logoutText: { color: "#e63946", fontSize: 15, fontWeight: "600" },
 });

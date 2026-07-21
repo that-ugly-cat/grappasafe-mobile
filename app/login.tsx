@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, Image,
+  View, Text, TextInput, TouchableOpacity, Image, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform, Alert,
 } from "react-native";
 import { router } from "expo-router";
@@ -41,9 +41,12 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={s.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={s.inner}>
+      <ScrollView
+        contentContainerStyle={s.inner}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={s.logoBox}>
           <Image
             source={require("../assets/logo-consorzio.png")}
@@ -90,7 +93,7 @@ export default function LoginScreen() {
         >
           <Text style={s.btnSecondaryText}>Non hai un account? Registrati</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -98,7 +101,7 @@ export default function LoginScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0f0f1a" },
   inner: {
-    flex: 1, justifyContent: "center", alignItems: "center", padding: 32,
+    flexGrow: 1, justifyContent: "center", alignItems: "center", padding: 32,
   },
   logoBox: {
     backgroundColor: "#fff", borderRadius: 14,

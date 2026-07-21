@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, View, Text } from "react-native";
-import MapView, { Circle, LocalTile, UrlTile } from "react-native-maps";
+import MapView, { Circle, LocalTile, UrlTile, Polyline } from "react-native-maps";
 import { AreaConfig } from "../lib/api";
 import { localTilePathTemplate, getLocalManifest } from "../lib/tiles";
 
@@ -8,6 +8,8 @@ interface Props {
   area: AreaConfig;
   /** Se true stratifica le tile locali (offline) sopra la base online. */
   offlineReady: boolean;
+  /** Traccia della sessione attiva (opzionale). */
+  track?: { latitude: number; longitude: number }[];
   style?: object;
 }
 
@@ -18,7 +20,7 @@ const ONLINE_URL = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
 // dove il locale ha la tile vince l'offline, altrove (adiacenti fuori dal
 // cerchio, o sotto lo zoom minimo scaricato) traspare l'online. Senza rete
 // resta solo la zona scaricata. Lo zoom-in è bloccato oltre il livello massimo.
-export default function OfflineMap({ area, offlineReady, style }: Props) {
+export default function OfflineMap({ area, offlineReady, track, style }: Props) {
   const delta = Math.max(0.5, (area.area_radius_km * 2.4) / 111);
   const region = {
     latitude: area.area_lat,
@@ -62,6 +64,9 @@ export default function OfflineMap({ area, offlineReady, style }: Props) {
           fillColor="rgba(230,57,70,0.08)"
           zIndex={1}
         />
+        {track && track.length >= 2 && (
+          <Polyline coordinates={track} strokeColor="#e74c3c" strokeWidth={4} zIndex={2} />
+        )}
       </MapView>
       {!offlineReady && (
         <Text style={styles.badge}>mappa online — scaricala nei settings per l'offline</Text>
