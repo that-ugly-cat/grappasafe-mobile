@@ -234,6 +234,7 @@ export interface Profile {
   nome: string;
   cognome: string;
   is_admin: boolean;
+  share_token: string;
   telefono: string;
   gruppo_sanguigno: string;
   emergenza_contatto: string;

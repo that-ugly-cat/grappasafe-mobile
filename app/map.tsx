@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, Alert, Pressable,
+  View, Text, TouchableOpacity, StyleSheet, Alert, Pressable, Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  getConfig, emergencyStatus, endSession, AreaConfig, Attivita,
+  getConfig, getMe, emergencyStatus, endSession, AreaConfig, Attivita, API_BASE,
 } from "../lib/api";
 import {
   loadAreaConfig, saveAreaConfig, loadSettings, loadSession, clearSession,
@@ -39,6 +39,7 @@ export default function MapScreen() {
   const [showActivity, setShowActivity] = useState(false);
   const [showEmergency, setShowEmergency] = useState(false);
   const [emergencyInitialSent, setEmergencyInitialSent] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
 
   // Setup iniziale: area (cache + refresh dal server), modalità mappa, sessione,
   // e se c'è già un'emergenza aperta riapre l'overlay.
@@ -51,6 +52,7 @@ export default function MapScreen() {
       }
     });
     loadSession().then(setSession);
+    getMe().then((me) => me && setShareToken(me.share_token));
     emergencyStatus().then((st) => {
       if (st?.active) {
         setEmergencyInitialSent(true);
@@ -107,6 +109,19 @@ export default function MapScreen() {
     loadSession().then(setSession);
   }
 
+  async function shareLive() {
+    if (!shareToken) return;
+    const url = `${API_BASE}/map/${shareToken}`;
+    try {
+      await Share.share({
+        message: `Segui il mio tracking live su GrappaSafe: ${url}`,
+        url,
+      });
+    } catch {
+      /* condivisione annullata */
+    }
+  }
+
   async function handlePauseToggle() {
     try {
       if (paused) {
@@ -158,12 +173,17 @@ export default function MapScreen() {
       {/* Top: chip live + banner fuori zona */}
       <View style={[s.top, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         {session && (
-          <View style={[s.chip, paused && s.chipPaused]}>
+          <Pressable
+            style={[s.chip, paused && s.chipPaused]}
+            onPress={shareLive}
+            disabled={!shareToken}
+          >
             <View style={[s.liveDot, paused && s.liveDotPaused]} />
             <Text style={s.chipText}>
               {paused ? "IN PAUSA" : "LIVE"} · {ACTIVITY_LABEL[session.attivita] ?? session.attivita}
             </Text>
-          </View>
+            <Text style={s.chipShare}>↗ condividi</Text>
+          </Pressable>
         )}
         {outOfZone && (
           <View style={s.zoneBanner}>
@@ -236,6 +256,7 @@ const s = StyleSheet.create({
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#2ecc71" },
   liveDotPaused: { backgroundColor: "#f0a500" },
   chipText: { color: "#fff", fontSize: 13, fontWeight: "600", letterSpacing: 0.5 },
+  chipShare: { color: "#e63946", fontSize: 12, fontWeight: "700", marginLeft: 4 },
   zoneBanner: { backgroundColor: "#7a2530", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
   zoneBannerText: { color: "#fff", fontWeight: "600", fontSize: 13 },
 
