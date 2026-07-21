@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  getConfig, getMe, emergencyStatus, endSession, AreaConfig, Attivita, API_BASE,
+  getConfig, getMe, emergencyStatus, endSession, getSessionStatus,
+  AreaConfig, Attivita, API_BASE,
 } from "../lib/api";
 import {
   loadAreaConfig, saveAreaConfig, loadSettings, loadSession, clearSession,
@@ -19,14 +20,14 @@ import ActivityModal from "../components/ActivityModal";
 import EmergencyOverlay from "../components/EmergencyOverlay";
 
 const ACTIVITY_LABEL: Record<string, string> = {
-  PARAGLIDER: "Parapendio 🪂",
-  HANGGLIDER: "Deltaplano 🦅",
-  GLIDER: "Aliante 🛩",
-  CYCLIST: "Ciclismo 🚴",
-  CLIMBER: "Arrampicata 🧗",
-  HIKER: "Escursionismo 🥾",
-  RUNNER: "Corsa 🏃",
-  OTHER_ON_GROUND: "Altro 🏕",
+  PARAGLIDER: "Parapendio",
+  HANGGLIDER: "Deltaplano",
+  GLIDER: "Aliante",
+  CYCLIST: "Ciclismo",
+  CLIMBER: "Arrampicata",
+  HIKER: "Escursionismo",
+  RUNNER: "Corsa",
+  OTHER_ON_GROUND: "Altro",
 };
 
 export default function MapScreen() {
@@ -70,6 +71,7 @@ export default function MapScreen() {
         setOfflineReady(settings.mapOffline && (await isMapDownloaded()));
         const a = await loadAreaConfig();
         if (a) setArea(a);
+        syncServerSession();
       })();
     }, [])
   );
@@ -119,6 +121,18 @@ export default function MapScreen() {
       });
     } catch {
       /* condivisione annullata */
+    }
+  }
+
+  // Riallinea con il server: se la sessione non è più attiva (es. l'emergenza
+  // è stata risolta e il server ha chiuso l'attività), ferma il tracking locale.
+  async function syncServerSession() {
+    const status = await getSessionStatus();
+    if (status && !status.active) {
+      await stopTracking();
+      await clearSession();
+      setSession(null);
+      setPaused(false);
     }
   }
 
@@ -182,7 +196,7 @@ export default function MapScreen() {
             <Text style={s.chipText}>
               {paused ? "IN PAUSA" : "LIVE"} · {ACTIVITY_LABEL[session.attivita] ?? session.attivita}
             </Text>
-            <Text style={s.chipShare}>↗ condividi</Text>
+            {shareToken && <Text style={s.chipShare}>· condividi</Text>}
           </Pressable>
         )}
         {outOfZone && (
@@ -234,6 +248,7 @@ export default function MapScreen() {
           onClose={() => {
             setShowEmergency(false);
             setEmergencyInitialSent(false);
+            syncServerSession();
           }}
         />
       )}
@@ -246,7 +261,7 @@ const s = StyleSheet.create({
   mapFull: { borderRadius: 0, borderWidth: 0 },
   mapPlaceholder: { backgroundColor: "#0f0f1a" },
 
-  top: { position: "absolute", left: 0, right: 0, top: 0, alignItems: "center", gap: 8 },
+  top: { position: "absolute", left: 0, right: 0, top: 0, alignItems: "center", gap: 8, paddingHorizontal: 64 },
   chip: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "rgba(15,15,26,0.9)", borderRadius: 20,
