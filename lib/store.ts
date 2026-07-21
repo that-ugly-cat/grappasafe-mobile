@@ -26,16 +26,14 @@ export const DEFAULT_SETTINGS: Settings = {
   mapOffline: false,
 };
 
-/** Messaggio d'emergenza di fallback, se il server non è mai stato raggiunto. */
-export const EMERGENCY_FALLBACK_MSG = "Resta dove sei, i soccorsi sono in arrivo.";
-
 export async function saveEmergencyMessage(msg: string) {
   if (msg) await AsyncStorage.setItem("gs_em_msg", msg);
 }
 
-export async function loadEmergencyMessage(): Promise<string> {
-  const raw = await AsyncStorage.getItem("gs_em_msg");
-  return raw || EMERGENCY_FALLBACK_MSG;
+/** The last server-provided emergency message, or null if none cached yet.
+ * The caller falls back to a translated default (see i18n emergency.fallbackMsg). */
+export async function loadEmergencyMessage(): Promise<string | null> {
+  return (await AsyncStorage.getItem("gs_em_msg")) || null;
 }
 
 export async function loadSettings(): Promise<Settings> {

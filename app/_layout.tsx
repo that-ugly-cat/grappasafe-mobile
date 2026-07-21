@@ -4,6 +4,7 @@ import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
+import { useT, initLang } from "../lib/i18n";
 
 // Controlla come mostrare la notifica quando l'app è in foreground.
 // shouldShowBanner: true → mostra il banner anche se l'app è aperta.
@@ -19,13 +20,19 @@ Notifications.setNotificationHandler({
 });
 
 export default function RootLayout() {
+  const t = useT();
   const responseListener = useRef<Notifications.Subscription | null>(null);
+
+  // Applica la lingua salvata (override sulla lingua del dispositivo).
+  useEffect(() => {
+    initLang();
+  }, []);
 
   useEffect(() => {
     // Crea il canale Android ad alta priorità (ignorato su iOS)
     if (Platform.OS === "android") {
       Notifications.setNotificationChannelAsync("emergency", {
-        name:             "Emergenza GrappaSafe",
+        name:             t("notif.channelName"),
         importance:       Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor:       "#e63946",
@@ -73,13 +80,13 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index"    options={{ headerShown: false }} />
         <Stack.Screen name="login"    options={{ title: "GrappaSafe", headerShown: false }} />
-        <Stack.Screen name="register" options={{ title: "Registrati" }} />
+        <Stack.Screen name="register" options={{ title: t("nav.register") }} />
         <Stack.Screen name="map"      options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ title: "Impostazioni" }} />
+        <Stack.Screen name="settings" options={{ title: t("nav.settings") }} />
         <Stack.Screen
           name="alarm"
           options={{
-            title:           "Emergenza",
+            title:           t("nav.emergency"),
             headerShown:     false,   // full screen, nessun header
             headerBackVisible: false,
             gestureEnabled:  false,   // niente swipe per chiudere

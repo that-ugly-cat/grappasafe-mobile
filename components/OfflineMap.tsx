@@ -3,6 +3,7 @@ import { StyleSheet, View, Text } from "react-native";
 import MapView, { Circle, LocalTile, UrlTile, Polyline } from "react-native-maps";
 import { AreaConfig } from "../lib/api";
 import { localTilePathTemplate, getLocalManifest } from "../lib/tiles";
+import { useT } from "../lib/i18n";
 
 interface Props {
   area: AreaConfig;
@@ -21,6 +22,7 @@ const ONLINE_URL = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
 // cerchio, o sotto lo zoom minimo scaricato) traspare l'online. Senza rete
 // resta solo la zona scaricata. Lo zoom-in è bloccato oltre il livello massimo.
 export default function OfflineMap({ area, offlineReady, track, style }: Props) {
+  const t = useT();
   const delta = Math.max(0.5, (area.area_radius_km * 2.4) / 111);
   const region = {
     latitude: area.area_lat,
@@ -69,7 +71,7 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
         )}
       </MapView>
       {!offlineReady && (
-        <Text style={styles.badge}>mappa online — scaricala nei settings per l'offline</Text>
+        <Text style={styles.badge}>{t("map.onlineBadge")}</Text>
       )}
     </View>
   );

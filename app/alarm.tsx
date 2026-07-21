@@ -25,6 +25,7 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { confirmEmergency, cancelEmergency } from "../lib/api";
 import { getCurrentPosition } from "../lib/tracking";
+import { useT } from "../lib/i18n";
 
 // Vibrazione SOS morse: · · ·  — — —  · · ·
 // Formato RN: [wait, vibrate, wait, vibrate, ...]
@@ -37,20 +38,19 @@ const SOS_PATTERN = [
   1200,                           // pausa inter-ciclo
 ];
 
-const TRIGGER_LABELS: Record<string, { title: string; detail: string }> = {
-  AUTO_IMPACT:   { title: "Impatto rilevato",         detail: "Il sensore ha rilevato un impatto. Sei ferito?" },
-  AUTO_IMMOBILE: { title: "Sei fermo da troppo tempo", detail: "Non ti muovi da diversi minuti. Hai bisogno di aiuto?" },
-};
-
-const DEFAULT_LABEL = { title: "Situazione anomala rilevata", detail: "Il sistema ha rilevato qualcosa di insolito." };
-
 export default function AlarmScreen() {
   useKeepAwake();
+  const t = useT();
 
   const params = useLocalSearchParams<{ trigger?: string; expires_in?: string }>();
   const initialSeconds = parseInt(params.expires_in ?? "180", 10);
   const trigger        = params.trigger ?? "";
-  const label          = TRIGGER_LABELS[trigger] ?? DEFAULT_LABEL;
+  const label =
+    trigger === "AUTO_IMPACT"
+      ? { title: t("alarm.impactTitle"), detail: t("alarm.impactDetail") }
+      : trigger === "AUTO_IMMOBILE"
+      ? { title: t("alarm.immobileTitle"), detail: t("alarm.immobileDetail") }
+      : { title: t("alarm.defaultTitle"), detail: t("alarm.defaultDetail") };
 
   const [countdown, setCountdown] = useState(Math.max(0, initialSeconds));
   const [resolved,  setResolved]  = useState(false);
@@ -150,9 +150,7 @@ export default function AlarmScreen() {
           {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
         </Text>
         <Text style={s.countdownLabel}>
-          {resolved
-            ? "Risposta inviata"
-            : "I soccorsi vengono allertati automaticamente"}
+          {resolved ? t("alarm.responseSent") : t("alarm.autoAlerting")}
         </Text>
       </View>
 
@@ -164,8 +162,8 @@ export default function AlarmScreen() {
           disabled={resolved}
           activeOpacity={0.75}
         >
-          <Text style={s.btnOkText}>✅  Sto bene</Text>
-          <Text style={s.btnSubtext}>Falso allarme</Text>
+          <Text style={s.btnOkText}>{t("alarm.imOk")}</Text>
+          <Text style={s.btnSubtext}>{t("alarm.falseAlarm")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -174,8 +172,8 @@ export default function AlarmScreen() {
           disabled={resolved}
           activeOpacity={0.75}
         >
-          <Text style={s.btnSosText}>🆘  Ho bisogno di aiuto</Text>
-          <Text style={s.btnSubtext}>Allerta i soccorsi</Text>
+          <Text style={s.btnSosText}>{t("alarm.needHelp")}</Text>
+          <Text style={s.btnSubtext}>{t("alarm.alertRescuers")}</Text>
         </TouchableOpacity>
       </View>
     </View>

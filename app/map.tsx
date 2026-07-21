@@ -18,18 +18,10 @@ import { isMapDownloaded } from "../lib/tiles";
 import SafeMap from "../components/SafeMap";
 import ActivityModal from "../components/ActivityModal";
 import EmergencyOverlay from "../components/EmergencyOverlay";
-
-const ACTIVITY_LABEL: Record<string, string> = {
-  PARAGLIDER: "Parapendio",
-  HANGGLIDER: "Deltaplano",
-  CYCLIST: "Ciclismo",
-  CLIMBER: "Arrampicata",
-  HIKER: "Escursionismo",
-  RUNNER: "Corsa",
-  OTHER_ON_GROUND: "Altro",
-};
+import { useT } from "../lib/i18n";
 
 export default function MapScreen() {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const [area, setArea] = useState<AreaConfig | null>(null);
   const [offlineReady, setOfflineReady] = useState(false);
@@ -149,7 +141,7 @@ export default function MapScreen() {
     const url = `${API_BASE}/map/${shareToken}`;
     try {
       await Share.share({
-        message: `Segui il mio tracking live su GrappaSafe: ${url}`,
+        message: t("map.shareMessage", { url }),
         url,
       });
     } catch {
@@ -179,15 +171,15 @@ export default function MapScreen() {
         setPaused(true);
       }
     } catch {
-      Alert.alert("Errore", "Impossibile cambiare stato del monitoraggio");
+      Alert.alert(t("common.error"), t("map.cannotToggle"));
     }
   }
 
   function handleStop() {
-    Alert.alert("Termina sessione", "Vuoi terminare il monitoraggio?", [
-      { text: "Annulla", style: "cancel" },
+    Alert.alert(t("map.endSessionTitle"), t("map.endSessionMsg"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Termina",
+        text: t("map.end"),
         style: "destructive",
         onPress: async () => {
           try {
@@ -197,7 +189,7 @@ export default function MapScreen() {
             setSession(null);
             setPaused(false);
           } catch {
-            Alert.alert("Errore", "Impossibile terminare la sessione");
+            Alert.alert(t("common.error"), t("map.cannotEnd"));
           }
         },
       },
@@ -228,14 +220,14 @@ export default function MapScreen() {
           >
             <View style={[s.liveDot, paused && s.liveDotPaused]} />
             <Text style={s.chipText}>
-              {paused ? "IN PAUSA" : "LIVE"} · {ACTIVITY_LABEL[session.attivita] ?? session.attivita}
+              {paused ? t("map.paused") : t("map.live")} · {t("act." + session.attivita)}
             </Text>
-            {shareToken && <Text style={s.chipShare}>· condividi</Text>}
+            {shareToken && <Text style={s.chipShare}>· {t("map.share")}</Text>}
           </Pressable>
         )}
         {outOfZone && (
           <View style={s.zoneBanner}>
-            <Text style={s.zoneBannerText}>⚠️ Sei fuori dalla zona monitorata</Text>
+            <Text style={s.zoneBannerText}>{t("map.outOfZone")}</Text>
           </View>
         )}
       </View>
@@ -253,15 +245,15 @@ export default function MapScreen() {
         {session ? (
           <View style={s.liveControls}>
             <TouchableOpacity style={s.ctrlBtn} onPress={handlePauseToggle}>
-              <Text style={s.ctrlText}>{paused ? "▶  Riprendi" : "⏸  Pausa"}</Text>
+              <Text style={s.ctrlText}>{paused ? t("map.resume") : t("map.pause")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.ctrlBtn, s.stopBtn]} onPress={handleStop}>
-              <Text style={s.ctrlText}>⏹  Stop</Text>
+              <Text style={s.ctrlText}>{t("map.stop")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity style={s.startBtn} onPress={() => setShowActivity(true)}>
-            <Text style={s.startText}>▶  Inizia attività</Text>
+            <Text style={s.startText}>{t("map.startActivity")}</Text>
           </TouchableOpacity>
         )}
 

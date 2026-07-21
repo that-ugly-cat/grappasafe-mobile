@@ -2,6 +2,7 @@ import { Component } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import OfflineMap from "./OfflineMap";
 import { AreaConfig } from "../lib/api";
+import { t } from "../lib/i18n";
 
 interface Props {
   area: AreaConfig;
@@ -31,8 +32,8 @@ export default class SafeMap extends Component<Props, State> {
     if (this.state.failed) {
       return (
         <View style={[styles.fallback, this.props.style]}>
-          <Text style={styles.text}>🗺️ Mappa non disponibile qui</Text>
-          <Text style={styles.sub}>Serve una development build</Text>
+          <Text style={styles.text}>{t("map.unavailable")}</Text>
+          <Text style={styles.sub}>{t("map.needDevBuild")}</Text>
         </View>
       );
     }

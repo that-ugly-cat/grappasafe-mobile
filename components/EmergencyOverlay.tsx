@@ -4,9 +4,8 @@ import {
 } from "react-native";
 import { sendEmergency, emergencyStatus } from "../lib/api";
 import { getCurrentPosition } from "../lib/tracking";
-import {
-  loadEmergencyMessage, saveEmergencyMessage, EMERGENCY_FALLBACK_MSG,
-} from "../lib/store";
+import { loadEmergencyMessage, saveEmergencyMessage } from "../lib/store";
+import { useT } from "../lib/i18n";
 
 const HOLD_MS = 3000;
 const POLL_MS = 15_000;
@@ -21,8 +20,9 @@ interface Props {
 }
 
 export default function EmergencyOverlay({ onClose, initialSent }: Props) {
+  const t = useT();
   const [phase, setPhase] = useState<Phase>(initialSent ? "sent" : "arming");
-  const [message, setMessage] = useState(EMERGENCY_FALLBACK_MSG);
+  const [message, setMessage] = useState(t("emergency.fallbackMsg"));
   const [acknowledged, setAcknowledged] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const progress = useRef(new Animated.Value(0)).current;
@@ -30,7 +30,7 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
   const holding = useRef(false);
 
   useEffect(() => {
-    loadEmergencyMessage().then(setMessage);
+    loadEmergencyMessage().then((m) => m && setMessage(m));
     const id = progress.addListener(({ value }) =>
       setCountdown(Math.max(1, Math.ceil(3 * (1 - value))))
     );
@@ -106,15 +106,13 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
   if (phase === "arming") {
     return (
       <Pressable style={s.overlay} onPressIn={onPressIn} onPressOut={onPressOut}>
-        <Text style={s.title}>Emergenza manuale</Text>
+        <Text style={s.title}>{t("emergency.manualTitle")}</Text>
         <Text style={s.count}>{countdown}</Text>
-        <Text style={s.instr}>
-          Tieni premuto ovunque per 3 secondi{"\n"}per segnalare un'emergenza
-        </Text>
+        <Text style={s.instr}>{t("emergency.holdInstr")}</Text>
         <Animated.View style={[s.holdProgress, { width: ringWidth }]} />
         <View style={s.cancelWrap}>
           <Pressable onPress={onClose} hitSlop={20}>
-            <Text style={s.cancel}>Annulla</Text>
+            <Text style={s.cancel}>{t("common.cancel")}</Text>
           </Pressable>
         </View>
       </Pressable>
@@ -126,25 +124,23 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
       {phase === "sending" && (
         <>
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={s.instr}>Invio emergenza…</Text>
+          <Text style={s.instr}>{t("emergency.sending")}</Text>
         </>
       )}
 
       {phase === "sent" && (
         <>
-          <Text style={s.sentTitle}>EMERGENZA INVIATA</Text>
+          <Text style={s.sentTitle}>{t("emergency.sentTitle")}</Text>
           <Text style={s.sentMsg}>{message}</Text>
           {acknowledged ? (
             <View style={s.ackBox}>
-              <Text style={s.ackTitle}>✓ Presa in carico</Text>
-              <Text style={s.ackText}>
-                Un operatore ha visto la tua richiesta di soccorso e la sta gestendo.
-              </Text>
+              <Text style={s.ackTitle}>{t("emergency.ackTitle")}</Text>
+              <Text style={s.ackText}>{t("emergency.ackText")}</Text>
             </View>
           ) : (
             <View style={s.pulse}>
               <ActivityIndicator color="#fff" />
-              <Text style={s.waiting}>Allerta inviata · in attesa di risposta</Text>
+              <Text style={s.waiting}>{t("emergency.waiting")}</Text>
             </View>
           )}
         </>

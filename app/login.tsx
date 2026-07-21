@@ -6,33 +6,35 @@ import {
 import { router } from "expo-router";
 import { login, getMe } from "../lib/api";
 import { saveUser } from "../lib/store";
+import { useT } from "../lib/i18n";
 
 export default function LoginScreen() {
+  const t = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
     if (!username.trim() || !password.trim()) {
-      Alert.alert("Attenzione", "Inserisci username e password");
+      Alert.alert(t("common.warning"), t("login.needUserPass"));
       return;
     }
     setLoading(true);
     try {
       const result = await login(username.trim(), password);
       if (!result.ok) {
-        Alert.alert("Errore", result.error ?? "Login fallito");
+        Alert.alert(t("common.error"), result.error ?? t("login.loginFailed"));
         return;
       }
       const me = await getMe();
       if (!me) {
-        Alert.alert("Errore", "Impossibile recuperare il profilo");
+        Alert.alert(t("common.error"), t("login.cannotFetchProfile"));
         return;
       }
       await saveUser(me);
       router.replace("/map");
     } catch (e) {
-      Alert.alert("Errore di rete", "Impossibile contattare il server");
+      Alert.alert(t("common.netError"), t("common.cannotReachServer"));
     } finally {
       setLoading(false);
     }
@@ -55,7 +57,7 @@ export default function LoginScreen() {
           />
         </View>
         <Text style={s.appName}>GrappaSafe</Text>
-        <Text style={s.subtitle}>Consorzio di Volo del Grappa</Text>
+        <Text style={s.subtitle}>{t("login.subtitle")}</Text>
 
         <TextInput
           style={s.input}
@@ -83,7 +85,7 @@ export default function LoginScreen() {
           onPress={handleLogin}
           disabled={loading}
         >
-          <Text style={s.btnText}>{loading ? "Accesso..." : "Accedi"}</Text>
+          <Text style={s.btnText}>{loading ? t("login.loading") : t("login.signIn")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -91,7 +93,7 @@ export default function LoginScreen() {
           onPress={() => router.push("/register")}
           disabled={loading}
         >
-          <Text style={s.btnSecondaryText}>Non hai un account? Registrati</Text>
+          <Text style={s.btnSecondaryText}>{t("login.noAccount")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

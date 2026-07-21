@@ -6,15 +6,10 @@ import {
 import { startSession, Attivita } from "../lib/api";
 import { saveSession } from "../lib/store";
 import { startTracking } from "../lib/tracking";
+import { useT } from "../lib/i18n";
 
-const ACTIVITIES: { id: Attivita; label: string }[] = [
-  { id: "PARAGLIDER",      label: "Parapendio" },
-  { id: "HANGGLIDER",      label: "Deltaplano" },
-  { id: "CYCLIST",         label: "Ciclismo" },
-  { id: "CLIMBER",         label: "Arrampicata" },
-  { id: "HIKER",           label: "Escursionismo" },
-  { id: "RUNNER",          label: "Corsa" },
-  { id: "OTHER_ON_GROUND", label: "Altro" },
+const ACTIVITIES: Attivita[] = [
+  "PARAGLIDER", "HANGGLIDER", "CYCLIST", "CLIMBER", "HIKER", "RUNNER", "OTHER_ON_GROUND",
 ];
 
 interface Props {
@@ -25,6 +20,7 @@ interface Props {
 }
 
 export default function ActivityModal({ visible, onClose, onStarted }: Props) {
+  const t = useT();
   const [loading, setLoading] = useState<Attivita | null>(null);
 
   async function pick(a: Attivita) {
@@ -40,7 +36,7 @@ export default function ActivityModal({ visible, onClose, onStarted }: Props) {
       await startTracking();
       onStarted(a);
     } catch (e: any) {
-      Alert.alert("Errore", e?.message ?? "Impossibile avviare la sessione");
+      Alert.alert(t("common.error"), e?.message ?? t("activity.cannotStart"));
     } finally {
       setLoading(null);
     }
@@ -51,28 +47,28 @@ export default function ActivityModal({ visible, onClose, onStarted }: Props) {
       <View style={s.backdrop}>
         <View style={s.sheet}>
           <View style={s.handle} />
-          <Text style={s.title}>Cosa stai facendo?</Text>
+          <Text style={s.title}>{t("activity.title")}</Text>
           <ScrollView contentContainerStyle={s.grid}>
             {ACTIVITIES.map((a) => {
-              const busy = loading === a.id;
+              const busy = loading === a;
               return (
                 <TouchableOpacity
-                  key={a.id}
+                  key={a}
                   style={[s.card, busy && s.cardBusy]}
-                  onPress={() => pick(a.id)}
+                  onPress={() => pick(a)}
                   disabled={loading !== null}
                 >
                   {busy ? (
                     <ActivityIndicator color="#e63946" />
                   ) : (
-                    <Text style={s.label}>{a.label}</Text>
+                    <Text style={s.label}>{t("act." + a)}</Text>
                   )}
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
           <TouchableOpacity style={s.cancel} onPress={onClose} disabled={loading !== null}>
-            <Text style={s.cancelText}>Annulla</Text>
+            <Text style={s.cancelText}>{t("common.cancel")}</Text>
           </TouchableOpacity>
         </View>
       </View>

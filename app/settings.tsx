@@ -14,6 +14,7 @@ import {
 import {
   isMapDownloaded, downloadMap, deleteMap, getLocalManifest,
 } from "../lib/tiles";
+import { useT, LANGS, LANG_NAMES, getLang, setLang } from "../lib/i18n";
 
 const INTERVAL_PRESETS_S = [5, 10, 15, 30, 60];
 
@@ -28,6 +29,7 @@ const EMPTY_PROFILE: ProfileForm = {
 };
 
 export default function SettingsScreen() {
+  const t = useT();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [profile, setProfile] = useState<ProfileForm>(EMPTY_PROFILE);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -85,7 +87,7 @@ export default function SettingsScreen() {
 
   async function saveDeviceForm() {
     if (!devName.trim()) {
-      Alert.alert("Attenzione", "Il nome della vela è obbligatorio");
+      Alert.alert(t("common.warning"), t("settings.wingNameRequired"));
       return;
     }
     setSavingDevice(true);
@@ -98,17 +100,17 @@ export default function SettingsScreen() {
       setShowDeviceForm(false);
       await refreshDevices();
     } catch {
-      Alert.alert("Errore", "Impossibile salvare il device");
+      Alert.alert(t("common.error"), t("settings.deviceSaveError"));
     } finally {
       setSavingDevice(false);
     }
   }
 
   function removeDevice(id: number) {
-    Alert.alert("Elimina", "Eliminare questa vela/device?", [
-      { text: "Annulla", style: "cancel" },
+    Alert.alert(t("common.delete"), t("settings.deleteDeviceMsg"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Elimina",
+        text: t("common.delete"),
         style: "destructive",
         onPress: async () => {
           await deleteDevice(id);
@@ -135,9 +137,9 @@ export default function SettingsScreen() {
       if (!ok) throw new Error();
       const fresh = await getMe();
       if (fresh) await saveUser(fresh);
-      Alert.alert("Profilo", "Dati salvati.");
+      Alert.alert(t("settings.profile"), t("settings.profileSaved"));
     } catch {
-      Alert.alert("Errore", "Impossibile salvare il profilo.");
+      Alert.alert(t("common.error"), t("settings.profileSaveError"));
     } finally {
       setSavingProfile(false);
     }
@@ -156,19 +158,19 @@ export default function SettingsScreen() {
     try {
       await downloadMap((p) => setProgress(p));
       await refreshMapStatus();
-      Alert.alert("Mappa offline", "Download completato.");
+      Alert.alert(t("settings.offlineMapTitle"), t("settings.downloadDone"));
     } catch {
-      Alert.alert("Errore", "Download non riuscito. Verifica connessione e tile sul server.");
+      Alert.alert(t("common.error"), t("settings.downloadError"));
     } finally {
       setDownloading(false);
     }
   }
 
   function handleDelete() {
-    Alert.alert("Elimina mappa offline", "Liberare lo spazio delle tile scaricate?", [
-      { text: "Annulla", style: "cancel" },
+    Alert.alert(t("settings.deleteOfflineMap"), t("settings.deleteOfflineMapMsg"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Elimina", style: "destructive",
+        text: t("common.delete"), style: "destructive",
         onPress: async () => { await deleteMap(); await refreshMapStatus(); },
       },
     ]);
@@ -180,35 +182,32 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={s.container} contentContainerStyle={s.inner} keyboardShouldPersistTaps="handled">
       {/* Profilo */}
-      <Text style={s.section}>Profilo</Text>
-      <Text style={s.hint}>Questi dati raggiungono i soccorsi in caso di emergenza.</Text>
+      <Text style={s.section}>{t("settings.profile")}</Text>
+      <Text style={s.hint}>{t("settings.profileHint")}</Text>
       <View style={s.row2}>
-        <TextInput style={[s.input, s.half]} placeholder="Nome" placeholderTextColor="#666"
+        <TextInput style={[s.input, s.half]} placeholder={t("register.name")} placeholderTextColor="#666"
           value={profile.nome} onChangeText={(v) => setP({ nome: v })} />
-        <TextInput style={[s.input, s.half]} placeholder="Cognome" placeholderTextColor="#666"
+        <TextInput style={[s.input, s.half]} placeholder={t("register.surname")} placeholderTextColor="#666"
           value={profile.cognome} onChangeText={(v) => setP({ cognome: v })} />
       </View>
-      <TextInput style={s.input} placeholder="Telefono" placeholderTextColor="#666"
+      <TextInput style={s.input} placeholder={t("settings.phone")} placeholderTextColor="#666"
         keyboardType="phone-pad" value={profile.telefono} onChangeText={(v) => setP({ telefono: v })} />
-      <TextInput style={s.input} placeholder="Gruppo sanguigno (es. 0+)" placeholderTextColor="#666"
+      <TextInput style={s.input} placeholder={t("register.bloodType")} placeholderTextColor="#666"
         autoCapitalize="characters" value={profile.gruppo_sanguigno} onChangeText={(v) => setP({ gruppo_sanguigno: v })} />
-      <TextInput style={s.input} placeholder="Contatto d'emergenza (nome)" placeholderTextColor="#666"
+      <TextInput style={s.input} placeholder={t("register.emergencyContactName")} placeholderTextColor="#666"
         value={profile.emergenza_contatto} onChangeText={(v) => setP({ emergenza_contatto: v })} />
-      <TextInput style={s.input} placeholder="Telefono contatto d'emergenza" placeholderTextColor="#666"
+      <TextInput style={s.input} placeholder={t("register.emergencyContactPhone")} placeholderTextColor="#666"
         keyboardType="phone-pad" value={profile.emergenza_telefono} onChangeText={(v) => setP({ emergenza_telefono: v })} />
-      <TextInput style={[s.input, s.multiline]} placeholder="Note di salute (allergie, terapie…)" placeholderTextColor="#666"
+      <TextInput style={[s.input, s.multiline]} placeholder={t("settings.healthNotes")} placeholderTextColor="#666"
         multiline value={profile.note_salute} onChangeText={(v) => setP({ note_salute: v })} />
       <TouchableOpacity style={[s.btn, savingProfile && s.btnDisabled]} onPress={handleSaveProfile} disabled={savingProfile}>
-        <Text style={s.btnText}>{savingProfile ? "Salvataggio…" : "Salva profilo"}</Text>
+        <Text style={s.btnText}>{savingProfile ? t("common.saving") : t("settings.saveProfile")}</Text>
       </TouchableOpacity>
 
       {/* Vela / device */}
       <View style={s.divider} />
-      <Text style={s.section}>La tua vela / device</Text>
-      <Text style={s.hint}>
-        Nome della vela (es. "Vela rossa, Ozone Rush") e, se hai un FLARM/OGN, il suo ID.
-        Compare ai soccorsi in caso di emergenza.
-      </Text>
+      <Text style={s.section}>{t("settings.devicesTitle")}</Text>
+      <Text style={s.hint}>{t("settings.devicesHint")}</Text>
       {devices.map((d) => (
         <View key={d.id} style={s.deviceRow}>
           <View style={{ flex: 1 }}>
@@ -216,34 +215,34 @@ export default function SettingsScreen() {
             {d.ogn_id ? <Text style={s.hint}>OGN/FLARM: {d.ogn_id}</Text> : null}
           </View>
           <TouchableOpacity onPress={() => openEditDevice(d)}>
-            <Text style={s.linkAction}>Modifica</Text>
+            <Text style={s.linkAction}>{t("settings.edit")}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => removeDevice(d.id)}>
-            <Text style={s.linkDanger}>Elimina</Text>
+            <Text style={s.linkDanger}>{t("common.delete")}</Text>
           </TouchableOpacity>
         </View>
       ))}
       {showDeviceForm ? (
         <View style={{ marginTop: 8 }}>
           <TextInput
-            style={s.input} placeholder='Nome vela / device' placeholderTextColor="#666"
+            style={s.input} placeholder={t("settings.wingNamePlaceholder")} placeholderTextColor="#666"
             value={devName} onChangeText={setDevName}
           />
           <TextInput
-            style={s.input} placeholder="ID OGN/FLARM (opzionale)" placeholderTextColor="#666"
+            style={s.input} placeholder={t("settings.ognIdOptional")} placeholderTextColor="#666"
             autoCapitalize="characters" autoCorrect={false}
             value={devOgn} onChangeText={setDevOgn}
           />
           <TouchableOpacity style={[s.btn, savingDevice && s.btnDisabled]} onPress={saveDeviceForm} disabled={savingDevice}>
-            <Text style={s.btnText}>{savingDevice ? "Salvataggio…" : "Salva"}</Text>
+            <Text style={s.btnText}>{savingDevice ? t("common.saving") : t("common.save")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.btnGhost} onPress={() => setShowDeviceForm(false)}>
-            <Text style={s.btnGhostText}>Annulla</Text>
+            <Text style={s.btnGhostText}>{t("common.cancel")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <TouchableOpacity style={s.btnGhost} onPress={openAddDevice}>
-          <Text style={s.linkAction}>+ Aggiungi vela / device</Text>
+          <Text style={s.linkAction}>{t("settings.addDevice")}</Text>
         </TouchableOpacity>
       )}
 
@@ -251,44 +250,41 @@ export default function SettingsScreen() {
       <View style={s.divider} />
       <View style={s.rowSwitch}>
         <View style={s.rowText}>
-          <Text style={s.section}>Usa mappa offline</Text>
-          <Text style={s.hint}>Default: OpenTopoMap online. Attiva per usare le tile scaricate.</Text>
+          <Text style={s.section}>{t("settings.useOfflineMap")}</Text>
+          <Text style={s.hint}>{t("settings.offlineMapHint")}</Text>
         </View>
         <Switch value={settings.mapOffline} onValueChange={(v) => update({ mapOffline: v })}
           trackColor={{ true: "#e63946", false: "#333" }} thumbColor="#fff" />
       </View>
       {settings.mapOffline && !mapReady && (
-        <Text style={s.warn}>⚠️ Mappa offline non ancora scaricata — scaricala qui sotto.</Text>
+        <Text style={s.warn}>{t("settings.offlineNotDownloaded")}</Text>
       )}
       {downloading ? (
         <View style={s.progressWrap}>
           <View style={s.progressBar}><View style={[s.progressFill, { width: `${pct}%` }]} /></View>
-          <Text style={s.hint}>{progress.total ? `${progress.done} / ${progress.total} tile (${pct}%)` : "Preparazione…"}</Text>
+          <Text style={s.hint}>{progress.total ? t("settings.tilesProgress", { done: progress.done, total: progress.total, pct }) : t("settings.preparing")}</Text>
           <ActivityIndicator color="#e63946" style={{ marginTop: 10 }} />
         </View>
       ) : mapReady ? (
         <>
-          <Text style={s.ok}>✓ Mappa scaricata{tileCount ? ` — ${tileCount} tile` : ""}</Text>
+          <Text style={s.ok}>{t("settings.mapDownloaded")}{tileCount ? t("settings.mapDownloadedTiles", { n: tileCount }) : ""}</Text>
           <TouchableOpacity style={s.btn} onPress={handleDownload}>
-            <Text style={s.btnText}>Aggiorna mappa</Text>
+            <Text style={s.btnText}>{t("settings.updateMap")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.btnGhost} onPress={handleDelete}>
-            <Text style={s.btnGhostText}>Elimina mappa offline</Text>
+            <Text style={s.btnGhostText}>{t("settings.deleteOfflineMap")}</Text>
           </TouchableOpacity>
         </>
       ) : (
         <TouchableOpacity style={s.btn} onPress={handleDownload}>
-          <Text style={s.btnText}>Scarica mappa offline</Text>
+          <Text style={s.btnText}>{t("settings.downloadOfflineMap")}</Text>
         </TouchableOpacity>
       )}
 
       {/* Frequenza pin */}
       <View style={s.divider} />
-      <Text style={s.section}>Frequenza aggiornamento pin</Text>
-      <Text style={s.hint}>
-        Ogni quanto l'app invia la posizione. Frequenza più alta = traccia più
-        precisa, ma maggiore consumo di batteria.
-      </Text>
+      <Text style={s.section}>{t("settings.gpsFreqTitle")}</Text>
+      <Text style={s.hint}>{t("settings.gpsFreqHint")}</Text>
       <View style={s.chips}>
         {INTERVAL_PRESETS_S.map((sec) => {
           const active = intervalS === sec;
@@ -301,24 +297,39 @@ export default function SettingsScreen() {
         })}
       </View>
       {intervalS > 30 && (
-        <Text style={s.warn}>⚠️ Intervalli lunghi ammorbidiscono il rilevamento automatico delle emergenze.</Text>
+        <Text style={s.warn}>{t("settings.gpsFreqWarn")}</Text>
       )}
 
       {/* Alert fuori zona */}
       <View style={s.divider} />
       <View style={s.rowSwitch}>
         <View style={s.rowText}>
-          <Text style={s.section}>Avviso "sei fuori zona"</Text>
-          <Text style={s.hint}>Notifica quando esci dal cerchio monitorato.</Text>
+          <Text style={s.section}>{t("settings.outOfZoneTitle")}</Text>
+          <Text style={s.hint}>{t("settings.outOfZoneHint")}</Text>
         </View>
         <Switch value={settings.outOfZoneAlerts} onValueChange={(v) => update({ outOfZoneAlerts: v })}
           trackColor={{ true: "#e63946", false: "#333" }} thumbColor="#fff" />
       </View>
 
+      {/* Lingua */}
+      <View style={s.divider} />
+      <Text style={s.section}>{t("settings.language")}</Text>
+      <View style={s.chips}>
+        {LANGS.map((l) => {
+          const active = getLang() === l;
+          return (
+            <TouchableOpacity key={l} style={[s.chip, active && s.chipActive]}
+              onPress={() => setLang(l)}>
+              <Text style={[s.chipText, active && s.chipTextActive]}>{LANG_NAMES[l]}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       {/* Logout */}
       <View style={s.divider} />
       <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
-        <Text style={s.logoutText}>Esci dall'account</Text>
+        <Text style={s.logoutText}>{t("settings.logout")}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

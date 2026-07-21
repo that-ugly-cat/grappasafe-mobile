@@ -5,6 +5,7 @@ import { Accelerometer } from "expo-sensors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendGps, sendEmergency, GpsPayload } from "./api";
 import { loadSettings, loadAreaConfig } from "./store";
+import { t } from "./i18n";
 
 export const LOCATION_TASK = "grappasafe-location";
 const GPS_INTERVAL_FALLBACK_MS = 15_000;
@@ -77,8 +78,8 @@ async function checkGeofence(lat: number, lon: number): Promise<void> {
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "⚠️ Fuori dalla zona monitorata",
-      body: `Sei a ${dist.toFixed(1)} km dal centro (raggio ${area.area_radius_km} km). Il monitoraggio automatico potrebbe non coprirti.`,
+      title: t("notif.outOfZoneTitle"),
+      body: t("notif.outOfZoneBody", { dist: dist.toFixed(1), radius: area.area_radius_km }),
       sound: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
@@ -130,8 +131,8 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
       if (!alreadyNotified) {
         const notifId = await Notifications.scheduleNotificationAsync({
           content: {
-            title: "⚠️ GrappaSafe — Emergenza rilevata",
-            body: "Apri l'app per rispondere. Hai 3 minuti prima che i soccorsi vengano allertati.",
+            title: t("notif.emergencyTitle"),
+            body: t("notif.emergencyBody"),
             sound: true,
             priority: Notifications.AndroidNotificationPriority.MAX,
             data: {
@@ -178,8 +179,8 @@ export async function startTracking(): Promise<void> {
     timeInterval: settings.gpsIntervalMs ?? GPS_INTERVAL_FALLBACK_MS,
     distanceInterval: 20,
     foregroundService: {
-      notificationTitle: "GrappaSafe attivo",
-      notificationBody: "Monitoraggio in corso",
+      notificationTitle: t("notif.trackingTitle"),
+      notificationBody: t("notif.trackingBody"),
       notificationColor: "#e63946",
     },
     pausesUpdatesAutomatically: false,
