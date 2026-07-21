@@ -43,9 +43,13 @@ export async function getLocalManifest(): Promise<TileManifest | null> {
 }
 
 async function fetchManifest(): Promise<TileManifest> {
-  const res = await fetch(MANIFEST_URL);
+  // Cache-buster + no-cache: evita che un manifest vecchio venga servito da una
+  // cache (device/rete) e faccia perdere le tile aggiunte lato server.
+  const res = await fetch(`${MANIFEST_URL}?t=${Date.now()}`, {
+    headers: { "Cache-Control": "no-cache" },
+  });
   if (!res.ok) throw new Error(`manifest non disponibile: HTTP ${res.status}`);
-  return res.json();
+  return (await res.json()) as TileManifest;
 }
 
 /**

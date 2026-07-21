@@ -1,18 +1,27 @@
+import { useEffect, useState } from "react";
 import { StyleSheet, View, Text } from "react-native";
 import MapView, { Circle, LocalTile, UrlTile } from "react-native-maps";
 import { AreaConfig } from "../lib/api";
-import { localTilePathTemplate } from "../lib/tiles";
+import { localTilePathTemplate, getLocalManifest } from "../lib/tiles";
 
 interface Props {
   area: AreaConfig;
-  /** Se true usa le tile locali (offline); altrimenti OpenTopoMap online. */
+  /** Se true usa le tile locali (offline) nel range coperto; altrimenti online. */
   offlineReady: boolean;
   style?: object;
 }
 
-// Mappa OpenTopoMap centrata sul cerchio monitorato. mapType="none" nasconde
-// la base di Google/Apple: si vedono solo le nostre tile (topografiche) + il
-// cerchio della zona. Il pin dell'utente è il dot nativo (showsUserLocation).
+const ONLINE_URL = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
+
+// zoom approssimato dal delta longitudinale della regione visibile.
+function zoomFromLonDelta(lonDelta: number): number {
+  return Math.round(Math.log2(360 / lonDelta));
+}
+
+// Mappa OpenTopoMap centrata sul cerchio monitorato. mapType="none" nasconde la
+// base di Google/Apple: si vedono solo le tile topografiche + il cerchio zona.
+// Offline: usa le tile locali dentro il range scaricato (z_min–z_max), blocca
+// lo zoom-in oltre il massimo, e fa fallback online sotto il minimo.
 export default function OfflineMap({ area, offlineReady, style }: Props) {
   const delta = Math.max(0.5, (area.area_radius_km * 2.4) / 111);
   const region = {
@@ -21,6 +30,23 @@ export default function OfflineMap({ area, offlineReady, style }: Props) {
     latitudeDelta: delta,
     longitudeDelta: delta,
   };
+
+  const [zoom, setZoom] = useState(zoomFromLonDelta(delta));
+  const [range, setRange] = useState<{ min: number; max: number } | null>(null);
+
+  useEffect(() => {
+    if (offlineReady) {
+      getLocalManifest().then((m) => m && setRange({ min: m.min_zoom, max: m.max_zoom }));
+    } else {
+      setRange(null);
+    }
+  }, [offlineReady]);
+
+  const minZoom = range?.min ?? 9;
+  const maxZoom = range?.max ?? 16;
+  // Tile locali solo se offline attivo e siamo entro il minimo coperto;
+  // sotto il minimo (zoom-out ampio) → OpenTopoMap online.
+  const useLocal = offlineReady && zoom >= minZoom;
 
   return (
     <View style={[styles.wrap, style]}>
@@ -31,15 +57,13 @@ export default function OfflineMap({ area, offlineReady, style }: Props) {
         showsUserLocation
         showsMyLocationButton={false}
         toolbarEnabled={false}
+        maxZoomLevel={offlineReady ? maxZoom : undefined}
+        onRegionChangeComplete={(r) => setZoom(zoomFromLonDelta(r.longitudeDelta))}
       >
-        {offlineReady ? (
+        {useLocal ? (
           <LocalTile pathTemplate={localTilePathTemplate()} tileSize={256} />
         ) : (
-          <UrlTile
-            urlTemplate="https://a.tile.opentopomap.org/{z}/{x}/{y}.png"
-            maximumZ={16}
-            tileSize={256}
-          />
+          <UrlTile urlTemplate={ONLINE_URL} maximumZ={17} tileSize={256} />
         )}
         <Circle
           center={{ latitude: area.area_lat, longitude: area.area_lon }}
