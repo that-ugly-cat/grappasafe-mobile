@@ -22,7 +22,6 @@ import EmergencyOverlay from "../components/EmergencyOverlay";
 const ACTIVITY_LABEL: Record<string, string> = {
   PARAGLIDER: "Parapendio",
   HANGGLIDER: "Deltaplano",
-  GLIDER: "Aliante",
   CYCLIST: "Ciclismo",
   CLIMBER: "Arrampicata",
   HIKER: "Escursionismo",

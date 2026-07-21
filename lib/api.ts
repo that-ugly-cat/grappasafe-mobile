@@ -5,7 +5,6 @@ export const API_BASE = "https://grappasafe.borant.eu";
 export type Attivita =
   | "PARAGLIDER"
   | "HANGGLIDER"
-  | "GLIDER"
   | "CYCLIST"
   | "CLIMBER"
   | "HIKER"

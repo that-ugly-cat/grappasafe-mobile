@@ -34,8 +34,8 @@ Cosa è stato fatto in questo giro:
   sessione* porta comunque nome, telefono, gruppo sanguigno, contatto d'emergenza.
 - **Condivisione live**: il chip LIVE apre il link pubblico `/map/{share_token}`.
 - **Traccia** disegnata sulla mappa dell'app (stesso endpoint del link).
-- Fix vari: password auto-capitalizzata (login 401), `GLIDER` accettato lato server,
-  tastiera che copriva la password, chip che si sovrapponeva ai settings.
+- Fix vari: password auto-capitalizzata (login 401), tastiera che copriva la
+  password, chip che si sovrapponeva ai settings.
 
 ---
 
@@ -110,4 +110,8 @@ risolve; server in ascolto su `0.0.0.0`). Su macchina nuova: `npx expo install -
   `/api/emergency/status`, presa in carico (`/admin/emergency/{id}/ack`), `PUT /api/me`
   con `share_token`, colonna `user_id` su `emergencies`, tile offline
   (`fetch_map_tiles.py` + mount `/map-tiles` da volume), chiusura sessione alla
-  risoluzione emergenza, `GLIDER` accettato in `session_start`.
+  risoluzione emergenza.
+- Emergency machine irrobustita (audit): immobilità decisa per **spostamento** (non
+  velocità istantanea), sweep dei pending server-side (auto-confirm anche senza tick
+  GPS), dedup emergenze app+OGN, impatto dimenticato se ci si allontana. `GLIDER`
+  (aliante) rimosso ovunque come attività monitorata.

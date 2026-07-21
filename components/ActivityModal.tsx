@@ -10,7 +10,6 @@ import { startTracking } from "../lib/tracking";
 const ACTIVITIES: { id: Attivita; label: string }[] = [
   { id: "PARAGLIDER",      label: "Parapendio" },
   { id: "HANGGLIDER",      label: "Deltaplano" },
-  { id: "GLIDER",          label: "Aliante" },
   { id: "CYCLIST",         label: "Ciclismo" },
   { id: "CLIMBER",         label: "Arrampicata" },
   { id: "HIKER",           label: "Escursionismo" },
