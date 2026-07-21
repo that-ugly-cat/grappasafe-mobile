@@ -111,5 +111,3 @@ risolve; server in ascolto su `0.0.0.0`). Su macchina nuova: `npx expo install -
   con `share_token`, colonna `user_id` su `emergencies`, tile offline
   (`fetch_map_tiles.py` + mount `/map-tiles` da volume), chiusura sessione alla
   risoluzione emergenza, `GLIDER` accettato in `session_start`.
-- **Vincolo commit**: niente tracce AI (commenti in inglese, stile umano, nessun
-  trailer di co-autore).

@@ -197,8 +197,3 @@ riarchitettura della mappa (via `react-native-maps`, dentro
 Expo Go) e richiede una sorgente + stile topo vettoriale (es. estratto `.pmtiles`
 dell'area, con curve di livello derivate dal DEM SRTM che il backend ha già). Da
 valutare **abbinato al passaggio a dev build**, non prima.
-
-## Convenzione repo
-
-Repo pubblico. Nei commit niente tracce AI: commenti in inglese, stile umano,
-nessun trailer di co-autore.

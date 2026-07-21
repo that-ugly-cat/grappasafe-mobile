@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Alert, Pressable, Share,
 } from "react-native";
@@ -42,6 +42,7 @@ export default function MapScreen() {
   const [emergencyInitialSent, setEmergencyInitialSent] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [track, setTrack] = useState<{ latitude: number; longitude: number }[]>([]);
+  const alarmOpenedRef = useRef(false);
 
   // Setup iniziale: area (cache + refresh dal server), modalità mappa, sessione,
   // e se c'è già un'emergenza aperta riapre l'overlay.
@@ -93,12 +94,17 @@ export default function MapScreen() {
     if (!session) return;
     async function checkPending() {
       const raw = await AsyncStorage.getItem("pending_emergency");
-      if (raw) {
+      if (raw && !alarmOpenedRef.current) {
+        // Naviga una sola volta per pending: senza la guardia il poll
+        // ri-pusherebbe /alarm ogni 5s, resettando il countdown.
+        alarmOpenedRef.current = true;
         const p = JSON.parse(raw) as { trigger: string; expires_in: number };
         router.push({
           pathname: "/alarm",
           params: { trigger: p.trigger, expires_in: String(p.expires_in) },
         });
+      } else if (!raw) {
+        alarmOpenedRef.current = false; // pending risolto → ri-arma per il prossimo
       }
     }
     checkPending();
