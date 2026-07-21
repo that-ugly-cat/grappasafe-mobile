@@ -144,19 +144,22 @@ export default function SettingsScreen() {
       {settings.mapOffline && !mapReady && (
         <Text style={s.warn}>⚠️ Mappa offline non ancora scaricata — scaricala qui sotto.</Text>
       )}
-      {mapReady ? (
-        <>
-          <Text style={s.ok}>✓ Mappa scaricata{tileCount ? ` — ${tileCount} tile` : ""}</Text>
-          <TouchableOpacity style={s.btnGhost} onPress={handleDelete} disabled={downloading}>
-            <Text style={s.btnGhostText}>Elimina mappa offline</Text>
-          </TouchableOpacity>
-        </>
-      ) : downloading ? (
+      {downloading ? (
         <View style={s.progressWrap}>
           <View style={s.progressBar}><View style={[s.progressFill, { width: `${pct}%` }]} /></View>
           <Text style={s.hint}>{progress.total ? `${progress.done} / ${progress.total} tile (${pct}%)` : "Preparazione…"}</Text>
           <ActivityIndicator color="#e63946" style={{ marginTop: 10 }} />
         </View>
+      ) : mapReady ? (
+        <>
+          <Text style={s.ok}>✓ Mappa scaricata{tileCount ? ` — ${tileCount} tile` : ""}</Text>
+          <TouchableOpacity style={s.btn} onPress={handleDownload}>
+            <Text style={s.btnText}>Aggiorna mappa</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.btnGhost} onPress={handleDelete}>
+            <Text style={s.btnGhostText}>Elimina mappa offline</Text>
+          </TouchableOpacity>
+        </>
       ) : (
         <TouchableOpacity style={s.btn} onPress={handleDownload}>
           <Text style={s.btnText}>Scarica mappa offline</Text>

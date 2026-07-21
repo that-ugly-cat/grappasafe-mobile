@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Alert, Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getConfig, emergencyStatus, endSession, AreaConfig, Attivita,
@@ -51,10 +51,6 @@ export default function MapScreen() {
       }
     });
     loadSession().then(setSession);
-    (async () => {
-      const settings = await loadSettings();
-      setOfflineReady(settings.mapOffline && (await isMapDownloaded()));
-    })();
     emergencyStatus().then((st) => {
       if (st?.active) {
         setEmergencyInitialSent(true);
@@ -62,6 +58,19 @@ export default function MapScreen() {
       }
     });
   }, []);
+
+  // Rilegge modalità mappa e area ad ogni focus della schermata: così tornando
+  // dai Settings (dove attivi l'offline) la mappa si aggiorna subito.
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const settings = await loadSettings();
+        setOfflineReady(settings.mapOffline && (await isMapDownloaded()));
+        const a = await loadAreaConfig();
+        if (a) setArea(a);
+      })();
+    }, [])
+  );
 
   // Banner "fuori zona" (flag scritto dal task background).
   useEffect(() => {
