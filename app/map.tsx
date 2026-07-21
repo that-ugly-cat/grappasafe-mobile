@@ -212,7 +212,7 @@ export default function MapScreen() {
 
       {/* Top: chip live + banner fuori zona */}
       <View style={[s.top, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-        {session && (
+        {session && !showEmergency && (
           <Pressable
             style={[s.chip, paused && s.chipPaused]}
             onPress={shareLive}
@@ -232,13 +232,15 @@ export default function MapScreen() {
         )}
       </View>
 
-      {/* Impostazioni (in alto a destra) */}
-      <TouchableOpacity
-        style={[s.gear, { top: insets.top + 8 }]}
-        onPress={() => router.push("/settings")}
-      >
-        <Text style={s.gearIcon}>⚙</Text>
-      </TouchableOpacity>
+      {/* Impostazioni (in alto a destra) — nascosto durante un'emergenza */}
+      {!showEmergency && (
+        <TouchableOpacity
+          style={[s.gear, { top: insets.top + 8 }]}
+          onPress={() => router.push("/settings")}
+        >
+          <Text style={s.gearIcon}>⚙</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Controlli in basso */}
       <View style={[s.bottom, { paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
