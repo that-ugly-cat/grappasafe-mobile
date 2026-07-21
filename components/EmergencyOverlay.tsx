@@ -119,8 +119,12 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
     );
   }
 
+  // Once sent, the panel drops to the bottom half so the map above stays
+  // visible and pannable — the person may need to check terrain or an exit.
   return (
-    <View style={s.overlay}>
+    <View style={s.sheet} pointerEvents="box-none">
+      <View style={s.sheetInner}>
+      <View style={s.handle} />
       {phase === "sending" && (
         <>
           <ActivityIndicator size="large" color="#fff" />
@@ -145,6 +149,7 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
           )}
         </>
       )}
+      </View>
     </View>
   );
 }
@@ -158,6 +163,20 @@ const s = StyleSheet.create({
     padding: 32,
     zIndex: 100,
   },
+  // Sent phase: full-screen transparent layer that lets touches through to the
+  // map, with the red panel pinned to the bottom half.
+  sheet: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end", zIndex: 100 },
+  sheetInner: {
+    height: "52%", width: "100%",
+    backgroundColor: "#9b141e",
+    alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 24, paddingBottom: 24, paddingTop: 28,
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+  },
+  handle: {
+    position: "absolute", top: 10, alignSelf: "center",
+    width: 44, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.5)",
+  },
   title: { color: "#fff", fontSize: 22, fontWeight: "bold", marginBottom: 12 },
   instr: { color: "#ffdada", fontSize: 15, textAlign: "center", marginBottom: 32, lineHeight: 22 },
   count: { color: "#fff", fontSize: 120, fontWeight: "bold", marginVertical: 8 },
@@ -170,12 +189,12 @@ const s = StyleSheet.create({
     color: "#fff", fontSize: 16,
     textDecorationLine: "underline", padding: 12,
   },
-  sentTitle: { color: "#fff", fontSize: 26, fontWeight: "bold", letterSpacing: 1, marginBottom: 20 },
+  sentTitle: { color: "#fff", fontSize: 26, fontWeight: "bold", letterSpacing: 1, marginBottom: 14 },
   sentMsg: { color: "#fff", fontSize: 20, textAlign: "center", lineHeight: 28, fontWeight: "600" },
-  pulse: { alignItems: "center", marginTop: 40, gap: 12 },
+  pulse: { alignItems: "center", marginTop: 22, gap: 12 },
   waiting: { color: "#ffdada", fontSize: 14 },
   ackBox: {
-    marginTop: 32, backgroundColor: "rgba(255,255,255,0.15)",
+    marginTop: 20, backgroundColor: "rgba(255,255,255,0.15)",
     borderRadius: 12, padding: 18, alignItems: "center",
   },
   ackTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 6 },
