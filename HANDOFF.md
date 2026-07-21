@@ -1,178 +1,115 @@
-# GrappaSafe — Handoff per il giro sull'app mobile
+# GrappaSafe — Handoff app mobile
 
-*Aggiornato: 17 luglio 2026*
+*Aggiornato: 21 luglio 2026*
 
-Documento di passaggio di consegne. Il lavoro sulla **webapp** (backend + pannelli
-admin/observer/user + OGN + emergenze + retention + mobile responsive) è chiuso e
-in produzione su `grappasafe.borant.eu`. Il prossimo giro è sull'**app mobile**.
-
----
-
-## 0. Stato al 17 luglio 2026
-
-Primo giro sull'app mobile eseguito su una macchina nuova (Android + Expo Go):
-
-- **Toolchain** installata da zero (Node, dipendenze, peer deps native mancanti reintegrate).
-- **Upgrade SDK 52 → 54** (React Native 0.81, React 19). Migrati i breaking change di
-  `expo-notifications` (`shouldShowBanner`/`shouldShowList`, `subscription.remove()`) e corretto
-  il background mode iOS in `infoPlist.UIBackgroundModes`.
-- **Login validato su device.** Bug trovato e risolto: su Android il campo password veniva
-  auto-capitalizzato, così la password arrivava alterata e il server rispondeva 401. Fix:
-  `autoCapitalize="none"` + `autoCorrect={false}` sui campi sensibili.
-- **Auto-registrazione pubblica** aggiunta: schermata mobile `register.tsx` + nuovo endpoint webapp
-  `POST /api/register` (ruolo forzato a `user` server-side).
-- **Logo del consorzio** nella schermata di login.
-- Verificati su Android/Expo Go: login, registrazione, avvio sessione, invio GPS, **mappa live**
-  (`react-native-maps` funziona sotto la nuova architecture di RN 0.81).
-
-Restano aperti dalla lista sotto: background affidabile via dev build (§3.4), calibrazione soglia
-impatto (§3.3), distribuzione EAS (§3.5), attività `GLIDER` (§3.6), `battery_pct` (§3.7). Il flusso
-emergenza end-to-end (§3.2) va testato con la dev build, non con Expo Go.
+Stato e prossimi passi dell'app mobile. Per architettura, struttura file e contratto
+server c'è il `README.md`; qui sta il racconto di dove siamo e cosa resta verso gli
+store. Il backend è chiuso e in produzione su `grappasafe.borant.eu`
+([repo `grappasafe`](https://github.com/that-ugly-cat/grappasafe)).
 
 ---
 
-## 1. Dove siamo
+## Dove siamo
 
-L'app in `mobile/` è un progetto **Expo Router (React Native)** già scaffoldato e
-scritto per intero. Tutte le schermate esistono e sono cablate agli endpoint del
-server. **Non è mai stata testata end-to-end contro il server live**, né buildata
-per distribuzione. Questo è il cuore del prossimo giro: farla girare su un device
-reale, testarla contro la produzione, calibrare, e distribuirla.
+L'app è stata ripensata **map-first** e validata su Android/Expo Go. Non è più uno
+scaffold non testato: login, registrazione, sessione, GPS, mappa, overlay emergenza,
+settings e condivisione girano su device reale contro la produzione.
 
-Schermate (tutte implementate, non stub):
+Cosa è stato fatto in questo giro:
 
-| File | Ruolo | Righe |
-|------|-------|-------|
-| `app/index.tsx` | splash + redirect (login / dashboard / tracking) | 35 |
-| `app/login.tsx` | login username/password | 99 |
-| `app/dashboard.tsx` | home utente loggato senza sessione attiva | 60 |
-| `app/activity.tsx` | scelta attività prima di avviare il monitoraggio | 96 |
-| `app/tracking.tsx` | schermata attiva durante la sessione + SOS | 286 |
-| `app/alarm.tsx` | countdown full-screen su emergenza pending | 279 |
-| `app/_layout.tsx` | stack navigator + handler notifiche | 90 |
-
-Libreria:
-
-| File | Ruolo |
-|------|-------|
-| `lib/api.ts` | client HTTP verso il backend (cookie di sessione) |
-| `lib/tracking.ts` | GPS in background + accelerometro (peak-g) |
-| `lib/store.ts` | AsyncStorage (user, session, cookie) |
-
----
-
-## 2. Contratto API — verificato contro `app.py`
-
-Gli endpoint che l'app chiama esistono tutti sul server. Nessun disallineamento
-di rotta. Riepilogo dei punti di contatto (tutti sotto sessione via cookie
-`session`, HTTPS):
-
-| App (`lib/api.ts`) | Server | Note |
-|--------------------|--------|------|
-| `POST /api/login` `{username,password}` | `app.py:149` | accetta tutti gli utenti, non solo admin |
-| `POST /logout` | route form | cancella cookie lato app |
-| `GET /api/me` | `app.py:644` | `{id,username,nome,cognome,is_admin}` |
-| `POST /api/session/start` `{attivita}` | `app.py:292` | ritorna `{session_id,state}` |
-| `POST /api/session/end` | `app.py:326` | |
-| `GET /api/session/status` | `app.py:402` | `{active,session_id?,attivita?,state?}` |
-| `POST /api/gps` (payload sotto) | `app.py:425` | cuore del monitoraggio |
-| `POST /api/emergency/confirm` `{lat,lon,alt_m}` | `app.py:362` | utente conferma "ho bisogno di aiuto" |
-| `POST /api/session/ok` | `app.py:341` | utente segnala "sto bene", resetta il pending |
-| `POST /api/emergency` `{lat,lon,alt_m}` | `app.py:574` | SOS manuale |
-
-### Payload GPS (app → server)
-
-```ts
-{ lat, lon, alt_m, speed_ms, motion_state, impact_detected,
-  accel_magnitude, battery_pct, ts }
-```
-
-**Importante sull'impatto:** l'app manda `accel_magnitude` come **picco** di
-accelerazione (in g) dall'ultimo invio, e lascia `impact_detected:false`.
-**È il server a decidere l'impatto**, con una soglia per attività
-(`impact_g_<attivita>` nella config emergency). L'app non deve più applicare una
-soglia sua. Vedi `lib/tracking.ts` (finestra di picco su listener a 100 ms) e la
-regola `AUTO_IMPACT` server-side.
-
-### Risposta GPS (server → app)
-
-```ts
-{ sm_state, db_state, pending_emergency: { trigger, expires_in } | null }
-```
-
-`pending_emergency` non-null → il server ha rilevato una condizione anomala e
-aspetta conferma entro `expires_in` secondi. L'app mostra la notifica al primo
-rilevamento e apre `alarm.tsx`. Se non risponde entro il timeout, il server apre
-l'emergenza da solo (auto-confirm, ridondanza sul client).
-
-Logica emergenza volo attualmente in produzione: `descending_fast → landed →
-immobile 120 s`. `AUTO_IMMOBILE` puro è **disattivato di default** (evita il caso
-"fermo a mangiare"). `SIGNAL_LOST` è stato **rimosso**. L'app non lo referenzia
-già, quindi nessun intervento richiesto lì.
+- **Toolchain da zero** su macchina nuova e **upgrade SDK 52 → 54** (RN 0.81, React 19),
+  con i breaking change di `expo-notifications` migrati.
+- **Restructure map-first**: una sola `map.tsx` (mappa + overlay) al posto di
+  dashboard/activity/tracking separate. Chip LIVE, Pausa/Stop, modale attività,
+  overlay emergenza.
+- **Auto-registrazione pubblica** (`register.tsx` + `POST /api/register`), **profilo
+  self-edit** (`PUT /api/me`), **logout** nei settings.
+- **Mappe offline OpenTopoMap**: tile self-hosted (zoom 9–16) scaricabili sul device,
+  con base online sotto per le aree non coperte e blocco zoom-in al massimo.
+- **Emergenze**: SOS manuale con hold 3s su tutto lo schermo; messaggio configurabile
+  dal server (cache + fallback); **presa in carico** dall'operatore mostrata sull'app;
+  alla **risoluzione** il server chiude la sessione e l'app ferma il tracking (il GPS
+  resta vivo *durante* l'emergenza per i soccorsi).
+- **Identità emergenza**: colonna `user_id` su `emergencies` — un SOS manuale *senza
+  sessione* porta comunque nome, telefono, gruppo sanguigno, contatto d'emergenza.
+- **Condivisione live**: il chip LIVE apre il link pubblico `/map/{share_token}`.
+- **Traccia** disegnata sulla mappa dell'app (stesso endpoint del link).
+- Fix vari: password auto-capitalizzata (login 401), `GLIDER` accettato lato server,
+  tastiera che copriva la password, chip che si sovrapponeva ai settings.
 
 ---
 
-## 3. Punti aperti per il prossimo giro (in ordine)
+## Contratto server (mobile → backend)
 
-1. **Far girare l'app su device reale** (`npx expo start`, Expo Go per un primo
-   giro). Verificare login → start sessione → invio GPS → risposta → end.
-2. **Testare il flusso emergenza end-to-end** con dati reali: provocare un pending
-   (o iniettarlo), verificare notifica, `alarm.tsx`, confirm e cancel, e che sul
-   pannello admin l'emergenza compaia e si risolva.
-3. **Calibrare la soglia impatto** ora che è server-side. Raccogliere qualche
-   traccia reale di volo/atterraggio e tarare `impact_g_<attivita>`. La nota nel
-   `README.md` che parla di "3.5g client-side" è **stale**: la decisione è passata
-   al server, va riscritta.
-4. **Background location affidabile.** Expo Go ha limiti sul background: per un
-   test serio serve una **dev build EAS** (non Expo Go). Verificare che il
-   foreground service Android tenga il GPS vivo a schermo spento.
-5. **Distribuzione.** Mai fatto un build EAS. `bundleIdentifier` /
-   `package` = `eu.borant.grappasafe`. Decidere canale (APK diretto vs store).
-6. **Allineare la lista attività.** `lib/api.ts` `Attivita` manca `GLIDER`
-   (aliante), che il server conosce. `AIRCRAFT`/`HELICOPTER` sono solo OGN e
-   giustamente non selezionabili nell'app. Aggiungere `GLIDER` alla lista e alla
-   schermata `activity.tsx`.
-7. **`battery_pct` è sempre `null`.** `expo-battery` non è incluso. Se il livello
-   batteria serve al monitoraggio (device che si spegne = fine tracce), aggiungerlo.
+Tutto sotto cookie `session`, HTTPS. Endpoint usati dall'app:
+
+- Auth: `POST /api/login`, `POST /api/register`, `POST /logout`
+- Profilo: `GET /api/me` (include `share_token`), `PUT /api/me`
+- Config: `GET /api/config` (cerchio monitorato: `area_lat/lon`, `area_radius_km`)
+- Sessione: `POST /api/session/start` `{attivita}`, `/end`, `GET /status`, `POST /ok`
+- GPS: `POST /api/gps` — payload `{lat, lon, alt_m, speed_ms, motion_state,
+  impact_detected, accel_magnitude, battery_pct, ts}`; risposta `{sm_state, db_state,
+  pending_emergency: {trigger, expires_in} | null}`
+- Emergenza: `POST /api/emergency`, `/emergency/confirm`, `GET /api/emergency/status`
+  (`{active, acknowledged, message, …}`)
+- Live/offline: `GET /api/map/{token}` (pubblico, traccia), `/map-tiles/{z}/{x}/{y}.png`
+
+**Impatto:** l'app manda il **picco** di accelerazione (g) dall'ultimo invio e lascia
+`impact_detected:false` — decide il server, soglia per attività (`impact_g_<attivita>`,
+regola `AUTO_IMPACT`). Vedi `lib/tracking.ts` (finestra di picco a 100 ms).
+
+**Logica emergenza volo in produzione:** `descending_fast → landed → immobile 120 s`.
+`AUTO_IMMOBILE` puro **disattivato** di default (evita "fermo a mangiare"),
+`SIGNAL_LOST` **rimosso**.
 
 ---
 
-## 4. Come far girare / testare
+## Punti aperti (verso gli store, in ordine)
+
+1. **Dev build EAS** — mai fatta, è il gate principale: sblocca background location a
+   schermo spento e notifiche complete (fuori da Expo Go). Provare il foreground
+   service Android col GPS a schermo spento.
+2. **Icone e splash** — `assets/icon.png`, `splash.png`, `adaptive-icon.png` sono
+   placeholder da 70 byte. Servono asset veri prima di ogni store.
+3. **Distribuzione** — canale da decidere: APK diretto al consorzio vs Play/App Store.
+   `bundleIdentifier`/`package` = `eu.borant.grappasafe`.
+4. **Calibrazione soglia impatto** — server-side, con tracce reali di volo/atterraggio.
+5. **`battery_pct` sempre `null`** — `expo-battery` non incluso; aggiungerlo se serve.
+6. **Emergenza end-to-end su dev build** — verificare notifica → `alarm.tsx` →
+   conferma/annulla, e la presa in carico/risoluzione dal pannello, fuori da Expo Go.
+
+**Forse, un giorno:** passaggio della mappa a **MapLibre GL** vettoriale (nitido a
+ogni zoom, offline più leggero). Costa una riarchitettura e obbliga alla dev build;
+da valutare abbinato a quel milestone, non prima. Dettaglio nel `README.md`.
+
+---
+
+## Come far girare
 
 ```bash
-cd tools/grappasafe/mobile
 npm install
 npx expo start
 ```
 
-Server di default in `lib/api.ts`: `https://grappasafe.borant.eu` (produzione).
-Per sviluppo locale puntare a `http://<ip-lan>:8010` (non `localhost`: il device
-fisico non lo risolve; serve l'IP della macchina sulla LAN, e il server FastAPI
-in ascolto su `0.0.0.0`).
-
-Permessi: su Android serve `ACCESS_BACKGROUND_LOCATION` (già in `app.json`); su
-iOS il background mode `location` (già configurato). Su Android 13+ anche
-`POST_NOTIFICATIONS`.
+Server di default in `lib/api.ts`: `https://grappasafe.borant.eu`. Per lo sviluppo
+locale puntare a `http://<ip-lan>:8010` (non `localhost`: il device fisico non lo
+risolve; server in ascolto su `0.0.0.0`). Su macchina nuova: `npx expo install --fix`.
 
 ---
 
-## 5. Stato webapp (contesto, già chiuso)
+## Stato webapp (contesto)
 
 - Deploy: VPS borant, `/opt/apps/grappasafe`, Docker, Caddy → `grappasafe.borant.eu`,
   porta 8010. Redeploy: `cd /opt/apps/grappasafe && git pull && docker compose up -d --build`.
-- Ruoli: `user`, `observer` (dashboard read-only + può risolvere emergenze),
+- Ruoli: `user`, `observer` (dashboard read-only + risolve/prende in carico emergenze),
   `admin`. Guard: `require_auth` / `require_viewer` / `require_admin`.
-- OGN attivo (callsign `GSAFE1`, passcode derivato). Parapendio vs aeromobile
-  distinti per tipo OGN. Precedenza attività: utente > device > tipo OGN.
-- Orari salvati in UTC, mostrati in ora di Roma (server e client).
-- Retention tracce: 7 giorni, job giornaliero, tracce legate a emergenze conservate.
-- Repo pubblico: `github.com/that-ugly-cat/grappasafe`. **Vincolo: niente tracce
-  AI nei commit** (commenti in inglese, stile umano, nessun trailer di co-autore).
-  Il repo va seminato dal disco, mai dalla history di Ono3.
-
-### Ancora da verificare a occhio dopo il deploy webapp
-
-- Barogrammi + tracce con dati veri (le tile su VPS mostrano AMSL/AGL distinti).
-- Estetica delle isoipse di sfondo (SVG da sopratutto.eu) su landing e pannelli.
-- Lo scrubber del barogramma (pin che scorre sulla mappa, ~80% opacità).
-- Il responsive mobile della webapp appena pushato (misurato via JS, non a occhio).
+- OGN attivo (callsign `GSAFE1`). Precedenza attività: utente > device > tipo OGN.
+- Orari in UTC, mostrati in ora di Roma. Retention tracce: 7 giorni, tracce legate a
+  emergenze conservate.
+- Aggiunte lato backend guidate dal mobile: `/api/register`, `/api/config`,
+  `/api/emergency/status`, presa in carico (`/admin/emergency/{id}/ack`), `PUT /api/me`
+  con `share_token`, colonna `user_id` su `emergencies`, tile offline
+  (`fetch_map_tiles.py` + mount `/map-tiles` da volume), chiusura sessione alla
+  risoluzione emergenza, `GLIDER` accettato in `session_start`.
+- **Vincolo commit**: niente tracce AI (commenti in inglese, stile umano, nessun
+  trailer di co-autore).
