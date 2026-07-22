@@ -64,7 +64,8 @@
           "microphonePermission": false
         }
       ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "./plugins/withRemoveRecordAudio"
     ],
     "scheme": "grappasafe",
     "extra": {
