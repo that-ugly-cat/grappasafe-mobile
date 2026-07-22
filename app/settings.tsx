@@ -20,11 +20,11 @@ const INTERVAL_PRESETS_S = [5, 10, 15, 30, 60];
 
 type ProfileForm = Pick<
   Profile,
-  "nome" | "cognome" | "telefono" | "gruppo_sanguigno" |
+  "nome" | "cognome" | "telefono" | "data_nascita" | "gruppo_sanguigno" |
   "emergenza_contatto" | "emergenza_telefono" | "note_salute"
 >;
 const EMPTY_PROFILE: ProfileForm = {
-  nome: "", cognome: "", telefono: "", gruppo_sanguigno: "",
+  nome: "", cognome: "", telefono: "", data_nascita: "", gruppo_sanguigno: "",
   emergenza_contatto: "", emergenza_telefono: "", note_salute: "",
 };
 
@@ -51,6 +51,7 @@ export default function SettingsScreen() {
       if (me) {
         setProfile({
           nome: me.nome, cognome: me.cognome, telefono: me.telefono,
+          data_nascita: me.data_nascita,
           gruppo_sanguigno: me.gruppo_sanguigno,
           emergenza_contatto: me.emergenza_contatto,
           emergenza_telefono: me.emergenza_telefono,
@@ -192,6 +193,10 @@ export default function SettingsScreen() {
       </View>
       <TextInput style={s.input} placeholder={t("settings.phone")} placeholderTextColor="#666"
         keyboardType="phone-pad" value={profile.telefono} onChangeText={(v) => setP({ telefono: v })} />
+      <TextInput style={s.input}
+        placeholder={t("register.dob") + " (" + t("register.dobPlaceholder") + ")"}
+        placeholderTextColor="#666"
+        value={profile.data_nascita} onChangeText={(v) => setP({ data_nascita: v })} />
       <TextInput style={s.input} placeholder={t("register.bloodType")} placeholderTextColor="#666"
         autoCapitalize="characters" value={profile.gruppo_sanguigno} onChangeText={(v) => setP({ gruppo_sanguigno: v })} />
       <TextInput style={s.input} placeholder={t("register.emergencyContactName")} placeholderTextColor="#666"

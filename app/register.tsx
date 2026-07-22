@@ -12,6 +12,7 @@ export default function RegisterScreen() {
   const t = useT();
   const [nome, setNome] = useState("");
   const [cognome, setCognome] = useState("");
+  const [dataNascita, setDataNascita] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -36,6 +37,7 @@ export default function RegisterScreen() {
         password,
         nome: nome.trim(),
         cognome: cognome.trim(),
+        data_nascita: dataNascita.trim() || undefined,
         telefono: telefono.trim() || undefined,
         gruppo_sanguigno: gruppo.trim() || undefined,
         emergenza_contatto: emContatto.trim() || undefined,
@@ -80,6 +82,12 @@ export default function RegisterScreen() {
         <TextInput
           style={s.input} placeholder={t("register.surname")} placeholderTextColor="#666"
           value={cognome} onChangeText={setCognome}
+        />
+        <TextInput
+          style={s.input}
+          placeholder={t("register.dob") + " (" + t("register.dobPlaceholder") + ")"}
+          placeholderTextColor="#666"
+          value={dataNascita} onChangeText={setDataNascita}
         />
         <TextInput
           style={s.input} placeholder="Username" placeholderTextColor="#666"
