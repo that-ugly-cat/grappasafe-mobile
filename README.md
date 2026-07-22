@@ -79,6 +79,8 @@ Stati della MapScreen:
 | `SafeMap.tsx` | error boundary attorno a `OfflineMap`: se `react-native-maps` manca nel runtime (es. Expo Go), mostra un placeholder invece di far cadere la schermata |
 | `ActivityModal.tsx` | modale di scelta attività (avvia sessione + tracking) |
 | `EmergencyOverlay.tsx` | overlay rosso: hold 3s per confermare, stato inviato, presa in carico, polling risoluzione |
+| `AlarmSound.tsx` | sirena d'emergenza (loop, volume max): isola `expo-audio` + `react-native-volume-manager`, moduli nativi assenti in Expo Go |
+| `SafeAlarmSound.tsx` | require protetto + error boundary attorno a `AlarmSound`: senza i moduli nativi (es. Expo Go) niente suono, ma `alarm.tsx` non cade su "unmatched route" |
 
 ### Libreria (`lib/`)
 
@@ -185,7 +187,9 @@ overlay emergenza. **Non** è affidabile per:
   usa solo notifiche locali, ma il flusso emergenza va verificato fuori da Expo Go);
 - **moduli nativi aggiunti** — date picker (`@react-native-community/datetimepicker`) e
   soprattutto il **suono d'allarme** (`expo-audio` + `react-native-volume-manager`) non
-  sono in Expo Go: degradano in silenzio (try/catch), ma vanno provati su dev build.
+  sono in Expo Go: la sirena è isolata dietro `SafeAlarmSound` (require protetto + error
+  boundary) e degrada in silenzio senza far cadere la schermata `alarm`, ma va provata
+  su dev build.
 
 Per tutto questo serve una **dev build EAS**. `bundleIdentifier` / `package` =
 `eu.borant.grappasafe`.

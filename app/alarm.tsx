@@ -23,11 +23,10 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useKeepAwake } from "expo-keep-awake";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAudioPlayer, setAudioModeAsync } from "expo-audio";
-import { VolumeManager } from "react-native-volume-manager";
 import { confirmEmergency, cancelEmergency } from "../lib/api";
 import { getCurrentPosition } from "../lib/tracking";
 import { useT } from "../lib/i18n";
+import SafeAlarmSound from "../components/SafeAlarmSound";
 
 // Vibrazione SOS morse: · · ·  — — —  · · ·
 // Formato RN: [wait, vibrate, wait, vibrate, ...]
@@ -59,35 +58,9 @@ export default function AlarmScreen() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resolvedRef = useRef(false);  // per handleConfirm chiamato da timer
 
-  // Suono d'allarme a volume massimo, in loop, anche col telefono silenzioso.
-  const player = useAudioPlayer(require("../assets/alarm.wav"));
-  const prevVolume = useRef<number | null>(null);
-
-  async function startSound() {
-    try {
-      await setAudioModeAsync({
-        playsInSilentMode: true,        // iOS: suona anche con l'interruttore silenzioso
-        interruptionMode: "doNotMix",   // prende il focus audio
-        shouldPlayInBackground: false,
-      });
-      const cur = await VolumeManager.getVolume();
-      prevVolume.current = typeof cur?.volume === "number" ? cur.volume : null;
-      await VolumeManager.setVolume(1.0, { showUI: false });   // Android: volume media al max
-    } catch { /* niente audio se il modulo manca (es. Expo Go) */ }
-    try {
-      player.loop = true;
-      player.volume = 1.0;
-      player.play();
-    } catch {}
-  }
-
-  function stopSound() {
-    try { player.pause(); } catch {}
-    if (prevVolume.current != null) {
-      VolumeManager.setVolume(prevVolume.current, { showUI: false }).catch(() => {});
-      prevVolume.current = null;
-    }
-  }
+  // La sirena è montata via <SafeAlarmSound> (sotto) finché l'emergenza è
+  // pending: usa moduli nativi assenti in Expo Go, isolati dietro un boundary
+  // per non far cadere questa route. Smontarla (resolved → true) la ferma.
 
   // Blocca il tasto back hardware (Android)
   useEffect(() => {
@@ -95,10 +68,10 @@ export default function AlarmScreen() {
     return () => sub.remove();
   }, []);
 
-  // Avvia vibrazione SOS loop + countdown
+  // Avvia vibrazione SOS loop + countdown (la sirena parte col montaggio di
+  // <SafeAlarmSound>).
   useEffect(() => {
     Vibration.vibrate(SOS_PATTERN, true);
-    startSound();
 
     intervalRef.current = setInterval(() => {
       setCountdown(prev => {
@@ -116,13 +89,11 @@ export default function AlarmScreen() {
     return () => {
       Vibration.cancel();
       if (intervalRef.current) clearInterval(intervalRef.current);
-      stopSound();
     };
   }, []);
 
   function stopAlarm() {
     Vibration.cancel();
-    stopSound();
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -172,6 +143,9 @@ export default function AlarmScreen() {
 
   return (
     <View style={s.container}>
+      {/* Sirena: attiva finché l'emergenza è pending; smontarla la ferma */}
+      {!resolved && <SafeAlarmSound />}
+
       {/* Icona */}
       <Text style={s.icon}>⚠️</Text>
 
