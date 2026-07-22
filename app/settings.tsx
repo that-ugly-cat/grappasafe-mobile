@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, Switch, ScrollView,
-  StyleSheet, Alert, ActivityIndicator,
+  StyleSheet, Alert, ActivityIndicator, Modal, Linking,
 } from "react-native";
 import { router } from "expo-router";
 import {
@@ -44,6 +44,7 @@ export default function SettingsScreen() {
   const [devName, setDevName] = useState("");
   const [devOgn, setDevOgn] = useState("");
   const [savingDevice, setSavingDevice] = useState(false);
+  const [showOgn, setShowOgn] = useState(false);
 
   useEffect(() => {
     loadSettings().then(setSettings);
@@ -218,7 +219,12 @@ export default function SettingsScreen() {
 
       {/* Vela / device */}
       <View style={s.divider} />
-      <Text style={s.section}>{t("settings.devicesTitle")}</Text>
+      <View style={s.sectionRow}>
+        <Text style={s.section}>{t("settings.devicesTitle")}</Text>
+        <TouchableOpacity style={s.infoBtn} onPress={() => setShowOgn(true)}>
+          <Text style={s.infoBtnText}>?</Text>
+        </TouchableOpacity>
+      </View>
       <Text style={s.hint}>{t("settings.devicesHint")}</Text>
       {devices.map((d) => (
         <View key={d.id} style={s.deviceRow}>
@@ -343,6 +349,24 @@ export default function SettingsScreen() {
       <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
         <Text style={s.logoutText}>{t("settings.logout")}</Text>
       </TouchableOpacity>
+
+      <Modal visible={showOgn} transparent animationType="fade" onRequestClose={() => setShowOgn(false)}>
+        <View style={s.modalBackdrop}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>{t("settings.ognModalTitle")}</Text>
+            <Text style={s.modalBody}>{t("settings.ognModalBody")}</Text>
+            <TouchableOpacity onPress={() => Linking.openURL("https://ogn.flarm.com/")}>
+              <Text style={s.modalLink}>ogn.flarm.com</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL("https://www.glidernet.org/")}>
+              <Text style={s.modalLink}>glidernet.org</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.modalClose} onPress={() => setShowOgn(false)}>
+              <Text style={s.modalCloseText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -393,4 +417,26 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "#5a2530",
   },
   logoutText: { color: "#e63946", fontSize: 15, fontWeight: "600" },
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  infoBtn: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: "#2a2a4a",
+    borderWidth: 1, borderColor: "#4a4a6e", alignItems: "center", justifyContent: "center",
+  },
+  infoBtnText: { color: "#aaa", fontSize: 13, fontWeight: "700" },
+  modalBackdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center", justifyContent: "center", padding: 28,
+  },
+  modalCard: {
+    width: "100%", backgroundColor: "#1e1e30", borderRadius: 14,
+    borderWidth: 1, borderColor: "#3a3a5e", padding: 20,
+  },
+  modalTitle: { color: "#fff", fontSize: 17, fontWeight: "bold", marginBottom: 12 },
+  modalBody: { color: "#cbd", fontSize: 14, lineHeight: 21, marginBottom: 12 },
+  modalLink: { color: "#6ab0ff", fontSize: 15, paddingVertical: 6 },
+  modalClose: {
+    marginTop: 12, alignSelf: "flex-end",
+    paddingVertical: 8, paddingHorizontal: 20, borderRadius: 8, backgroundColor: "#e63946",
+  },
+  modalCloseText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });
