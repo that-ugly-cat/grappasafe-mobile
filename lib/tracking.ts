@@ -177,7 +177,11 @@ export async function startTracking(): Promise<void> {
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.BestForNavigation,
     timeInterval: settings.gpsIntervalMs ?? GPS_INTERVAL_FALLBACK_MS,
-    distanceInterval: 20,
+    // 0 = nessuna soglia di spostamento: i punti arrivano sul solo intervallo
+    // di tempo anche da fermo. Con una soglia in metri (es. 20) Android
+    // sopprimerebbe gli update quando il soggetto è immobile — proprio quando
+    // servono di più (rilevamento immobilità + picco d'impatto viaggiano col GPS).
+    distanceInterval: 0,
     foregroundService: {
       notificationTitle: t("notif.trackingTitle"),
       notificationBody: t("notif.trackingBody"),
