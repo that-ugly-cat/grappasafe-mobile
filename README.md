@@ -12,8 +12,8 @@ Backend e pannelli (admin/observer/user, OGN, emergenze) stanno nel repo
 ## Stack
 
 - Expo SDK 54, React Native 0.81, React 19, expo-router 6
-- Mappa: `react-native-maps` (Google/Apple sotto, ma usata solo come contenitore:
-  la base è OpenTopoMap via tile)
+- Mappa: `@maplibre/maplibre-react-native` (nessuna base Google/Apple, nessuna
+  API key: la base è OpenTopoMap via tile raster, online + scaricabili offline)
 - GPS in background: `expo-location` + `expo-task-manager`; accelerometro:
   `expo-sensors`; tile offline: `expo-file-system`; notifiche: `expo-notifications`
 - Allarme sonoro: `expo-audio` + `react-native-volume-manager` (sirena in loop a
@@ -75,8 +75,8 @@ Stati della MapScreen:
 
 | File | Ruolo |
 |------|-------|
-| `OfflineMap.tsx` | `MapView` (`mapType="none"`) + base OTM online + tile locali sopra + cerchio zona + traccia + pallino utente |
-| `SafeMap.tsx` | error boundary attorno a `OfflineMap`: se `react-native-maps` manca nel runtime (es. Expo Go), mostra un placeholder invece di far cadere la schermata |
+| `OfflineMap.tsx` | `Map` MapLibre (stile scuro minimo) + base raster OTM online + tile locali sopra + cerchio zona + traccia + pallino utente |
+| `SafeMap.tsx` | error boundary attorno a `OfflineMap`: se MapLibre manca nel runtime (es. Expo Go), mostra un placeholder invece di far cadere la schermata |
 | `ActivityModal.tsx` | modale di scelta attività (avvia sessione + tracking) |
 | `EmergencyOverlay.tsx` | overlay rosso: hold 3s per confermare, stato inviato, presa in carico, polling risoluzione |
 | `AlarmSound.tsx` | sirena d'emergenza (loop, volume max): isola `expo-audio` + `react-native-volume-manager`, moduli nativi assenti in Expo Go |
@@ -207,14 +207,3 @@ Per tutto questo serve una **dev build EAS**. `bundleIdentifier` / `package` =
   tracce reali di volo/atterraggio.
 - **`battery_pct` sempre `null`**: `expo-battery` non è incluso. Aggiungerlo se il
   livello batteria serve al monitoraggio (device che si spegne = fine tracce).
-
-## Possibile futuro: mappa vettoriale (MapLibre)
-
-Le tile OpenTopoMap sono raster e a certi zoom si vedono un po' pixelate.
-Un giorno, **forse**, si potrebbe passare a **MapLibre GL** (vettoriale): nitido a
-ogni zoom, pacchetti offline molto più leggeri, ristilabile. Costa però una
-riarchitettura della mappa (via `react-native-maps`, dentro
-`@maplibre/maplibre-react-native`), obbliga alla dev build (modulo nativo, fuori da
-Expo Go) e richiede una sorgente + stile topo vettoriale (es. estratto `.pmtiles`
-dell'area, con curve di livello derivate dal DEM SRTM che il backend ha già). Da
-valutare **abbinato al passaggio a dev build**, non prima.
