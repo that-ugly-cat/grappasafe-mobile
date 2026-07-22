@@ -36,7 +36,7 @@ export default function ActivityModal({ visible, onClose, onStarted }: Props) {
       await startTracking();
       onStarted(a);
     } catch (e: any) {
-      Alert.alert(t("common.error"), e?.message ?? t("activity.cannotStart"));
+      Alert.alert(t("common.error"), t("activity.cannotStart"));
     } finally {
       setLoading(null);
     }

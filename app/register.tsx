@@ -96,7 +96,7 @@ export default function RegisterScreen() {
           value={dataNascita} onChange={setDataNascita}
         />
         <TextInput
-          style={s.input} placeholder="Username" placeholderTextColor="#666"
+          style={s.input} placeholder={t("common.username")} placeholderTextColor="#666"
           autoCapitalize="none" autoCorrect={false}
           value={username} onChangeText={setUsername}
         />

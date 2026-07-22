@@ -61,7 +61,7 @@ export default function LoginScreen() {
 
         <TextInput
           style={s.input}
-          placeholder="Username"
+          placeholder={t("common.username")}
           placeholderTextColor="#666"
           autoCapitalize="none"
           autoCorrect={false}
@@ -70,7 +70,7 @@ export default function LoginScreen() {
         />
         <TextInput
           style={s.input}
-          placeholder="Password"
+          placeholder={t("common.password")}
           placeholderTextColor="#666"
           secureTextEntry
           autoCapitalize="none"

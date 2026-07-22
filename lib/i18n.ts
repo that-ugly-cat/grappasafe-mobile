@@ -105,6 +105,8 @@ const it: Table = {
   "common.save": "Salva",
   "common.saving": "Salvataggio…",
   "common.delete": "Elimina",
+  "common.username": "Nome utente",
+  "common.password": "Password",
 
   // activities
   "act.PARAGLIDER": "Parapendio",
@@ -261,6 +263,8 @@ const en: Table = {
   "common.save": "Save",
   "common.saving": "Saving…",
   "common.delete": "Delete",
+  "common.username": "Username",
+  "common.password": "Password",
 
   "act.PARAGLIDER": "Paragliding",
   "act.HANGGLIDER": "Hang gliding",
@@ -407,6 +411,8 @@ const de: Table = {
   "common.save": "Speichern",
   "common.saving": "Speichern…",
   "common.delete": "Löschen",
+  "common.username": "Benutzername",
+  "common.password": "Passwort",
 
   "act.PARAGLIDER": "Gleitschirm",
   "act.HANGGLIDER": "Drachen",
@@ -553,6 +559,8 @@ const fr: Table = {
   "common.save": "Enregistrer",
   "common.saving": "Enregistrement…",
   "common.delete": "Supprimer",
+  "common.username": "Nom d'utilisateur",
+  "common.password": "Mot de passe",
 
   "act.PARAGLIDER": "Parapente",
   "act.HANGGLIDER": "Deltaplane",
@@ -699,6 +707,8 @@ const es: Table = {
   "common.save": "Guardar",
   "common.saving": "Guardando…",
   "common.delete": "Eliminar",
+  "common.username": "Nombre de usuario",
+  "common.password": "Contraseña",
 
   "act.PARAGLIDER": "Parapente",
   "act.HANGGLIDER": "Ala delta",
@@ -845,6 +855,8 @@ const nl: Table = {
   "common.save": "Opslaan",
   "common.saving": "Opslaan…",
   "common.delete": "Verwijderen",
+  "common.username": "Gebruikersnaam",
+  "common.password": "Wachtwoord",
 
   "act.PARAGLIDER": "Paragliden",
   "act.HANGGLIDER": "Deltavliegen",
@@ -991,6 +1003,8 @@ const pl: Table = {
   "common.save": "Zapisz",
   "common.saving": "Zapisywanie…",
   "common.delete": "Usuń",
+  "common.username": "Nazwa użytkownika",
+  "common.password": "Hasło",
 
   "act.PARAGLIDER": "Paralotniarstwo",
   "act.HANGGLIDER": "Lotniarstwo",
@@ -1137,6 +1151,8 @@ const cs: Table = {
   "common.save": "Uložit",
   "common.saving": "Ukládání…",
   "common.delete": "Smazat",
+  "common.username": "Uživatelské jméno",
+  "common.password": "Heslo",
 
   "act.PARAGLIDER": "Paragliding",
   "act.HANGGLIDER": "Závěsné létání",

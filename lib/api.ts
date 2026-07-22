@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { t } from "./i18n";
 
 export const API_BASE = "https://grappasafe.borant.eu";
 
@@ -59,9 +60,9 @@ export async function login(
     });
     if (res.ok) return { ok: true };
     const data = await res.json().catch(() => ({})) as { error?: string };
-    return { ok: false, error: data.error ?? "Credenziali non valide" };
+    return { ok: false, error: data.error ?? t("login.loginFailed") };
   } catch {
-    return { ok: false, error: "Errore di rete" };
+    return { ok: false, error: t("common.netError") };
   }
 }
 
@@ -95,9 +96,9 @@ export async function register(
     });
     if (res.ok) return { ok: true };
     const data = (await res.json().catch(() => ({}))) as { error?: string };
-    return { ok: false, error: data.error ?? "Registrazione non riuscita" };
+    return { ok: false, error: data.error ?? t("register.failed") };
   } catch {
-    return { ok: false, error: "Errore di rete" };
+    return { ok: false, error: t("common.netError") };
   }
 }
 
