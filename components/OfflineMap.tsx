@@ -4,7 +4,6 @@ import {
   Map,
   Camera,
   RasterSource,
-  VectorSource,
   GeoJSONSource,
   Layer,
   UserLocation,
@@ -91,7 +90,9 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
     <View style={[styles.wrap, style]}>
       <Map
         style={StyleSheet.absoluteFill}
-        mapStyle={BASE_STYLE}
+        // Online: lo stile vettoriale OTM assemblato dal backend (vector + fallback
+        // raster). Offline: stile locale minimo, con le tile raster scaricate sotto.
+        mapStyle={offlineReady ? BASE_STYLE : `${API_BASE}/vector-style.json`}
         logo={false}
         compass={false}
         attribution={false}
@@ -101,10 +102,13 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
           maxZoom={offlineReady ? maxZoom ?? 16 : undefined}
         />
 
-        {/* Base OTM online (sotto): fallback dove il locale non copre. */}
-        <RasterSource id="otm-online" tiles={[ONLINE_URL]} tileSize={256} maxzoom={17}>
-          <Layer id="otm-online-layer" type="raster" />
-        </RasterSource>
+        {/* Solo offline: base OTM raster online sotto le tile locali (online la
+            base la fornisce già lo stile vettoriale OTM). */}
+        {offlineReady && (
+          <RasterSource id="otm-online" tiles={[ONLINE_URL]} tileSize={256} maxzoom={17}>
+            <Layer id="otm-online-layer" type="raster" />
+          </RasterSource>
+        )}
 
         {/* Tile locali (sopra): coprono la zona scaricata anche senza rete. */}
         {offlineReady && (
@@ -117,36 +121,6 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
             <Layer id="otm-offline-layer" type="raster" />
           </RasterSource>
         )}
-
-        {/* PROVA VETTORIALE (de-risk): tile OTM dal backend, qualche layer
-            non-testuale sopra la base raster. Colori vistosi apposta per capire
-            a colpo d'occhio se MapLibre renderizza le nostre .pbf. Da sostituire
-            con lo stile OTM completo (+ glyphs/sprite + curve) quando il canale
-            è validato. Niente glyphs qui → solo fill/line, nessuna etichetta. */}
-        <VectorSource
-          id="otm-vector"
-          tiles={[`${API_BASE}/vector-tiles/{z}/{x}/{y}.pbf`]}
-          maxzoom={14}
-        >
-          <Layer
-            id="v-water"
-            type="fill"
-            source-layer="water_polygons"
-            paint={{ "fill-color": "#4a90d9", "fill-opacity": 0.5 }}
-          />
-          <Layer
-            id="v-streets"
-            type="line"
-            source-layer="streets"
-            paint={{ "line-color": "#ff8c00", "line-width": 1.5 }}
-          />
-          <Layer
-            id="v-boundaries"
-            type="line"
-            source-layer="boundaries"
-            paint={{ "line-color": "#c000c0", "line-width": 1 }}
-          />
-        </VectorSource>
 
         {/* Cerchio monitorato: riempimento tenue + bordo. */}
         <GeoJSONSource id="zone" data={zone}>
