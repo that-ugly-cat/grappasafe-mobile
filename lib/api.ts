@@ -75,6 +75,7 @@ export interface RegisterPayload {
   password: string;
   nome: string;
   cognome: string;
+  email: string;
   telefono?: string;
   data_nascita?: string;
   gruppo_sanguigno?: string;
@@ -259,6 +260,7 @@ export interface Profile {
   emergenza_telefono: string;
   note_salute: string;
   data_nascita: string;
+  email: string;
   lingua: string;
 }
 

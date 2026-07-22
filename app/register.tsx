@@ -15,6 +15,7 @@ export default function RegisterScreen() {
   const [cognome, setCognome] = useState("");
   const [dataNascita, setDataNascita] = useState("");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [telefono, setTelefono] = useState("");
   const [gruppo, setGruppo] = useState("");
@@ -25,6 +26,10 @@ export default function RegisterScreen() {
   async function handleRegister() {
     if (!nome.trim() || !cognome.trim() || !username.trim() || !password) {
       Alert.alert(t("common.warning"), t("register.requiredFields"));
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert(t("common.warning"), t("register.emailRequired"));
       return;
     }
     if (password.length < 6) {
@@ -38,6 +43,7 @@ export default function RegisterScreen() {
         password,
         nome: nome.trim(),
         cognome: cognome.trim(),
+        email: email.trim(),
         data_nascita: dataNascita.trim() || undefined,
         telefono: telefono.trim() || undefined,
         gruppo_sanguigno: gruppo.trim() || undefined,
@@ -93,6 +99,11 @@ export default function RegisterScreen() {
           style={s.input} placeholder="Username" placeholderTextColor="#666"
           autoCapitalize="none" autoCorrect={false}
           value={username} onChangeText={setUsername}
+        />
+        <TextInput
+          style={s.input} placeholder={t("register.email")} placeholderTextColor="#666"
+          keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
+          value={email} onChangeText={setEmail}
         />
         <TextInput
           style={s.input} placeholder={t("register.passwordMin")} placeholderTextColor="#666"

@@ -21,11 +21,11 @@ const INTERVAL_PRESETS_S = [5, 10, 15, 30, 60];
 
 type ProfileForm = Pick<
   Profile,
-  "nome" | "cognome" | "telefono" | "data_nascita" | "gruppo_sanguigno" |
+  "nome" | "cognome" | "email" | "telefono" | "data_nascita" | "gruppo_sanguigno" |
   "emergenza_contatto" | "emergenza_telefono" | "note_salute"
 >;
 const EMPTY_PROFILE: ProfileForm = {
-  nome: "", cognome: "", telefono: "", data_nascita: "", gruppo_sanguigno: "",
+  nome: "", cognome: "", email: "", telefono: "", data_nascita: "", gruppo_sanguigno: "",
   emergenza_contatto: "", emergenza_telefono: "", note_salute: "",
 };
 
@@ -51,7 +51,8 @@ export default function SettingsScreen() {
     getMe().then((me) => {
       if (me) {
         setProfile({
-          nome: me.nome, cognome: me.cognome, telefono: me.telefono,
+          nome: me.nome, cognome: me.cognome, email: me.email,
+          telefono: me.telefono,
           data_nascita: me.data_nascita,
           gruppo_sanguigno: me.gruppo_sanguigno,
           emergenza_contatto: me.emergenza_contatto,
@@ -192,6 +193,9 @@ export default function SettingsScreen() {
         <TextInput style={[s.input, s.half]} placeholder={t("register.surname")} placeholderTextColor="#666"
           value={profile.cognome} onChangeText={(v) => setP({ cognome: v })} />
       </View>
+      <TextInput style={s.input} placeholder={t("register.email")} placeholderTextColor="#666"
+        keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
+        value={profile.email} onChangeText={(v) => setP({ email: v })} />
       <TextInput style={s.input} placeholder={t("settings.phone")} placeholderTextColor="#666"
         keyboardType="phone-pad" value={profile.telefono} onChangeText={(v) => setP({ telefono: v })} />
       <DateField style={s.input}
