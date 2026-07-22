@@ -1,10 +1,10 @@
 import { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, Image, ScrollView,
-  StyleSheet, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, KeyboardAvoidingView, Platform, Alert, Linking,
 } from "react-native";
 import { router } from "expo-router";
-import { login, getMe } from "../lib/api";
+import { login, getMe, API_BASE } from "../lib/api";
 import { saveUser } from "../lib/store";
 import { useT } from "../lib/i18n";
 
@@ -95,6 +95,14 @@ export default function LoginScreen() {
         >
           <Text style={s.btnSecondaryText}>{t("login.noAccount")}</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={s.forgot}
+          onPress={() => Linking.openURL(`${API_BASE}/forgot`)}
+          disabled={loading}
+        >
+          <Text style={s.forgotText}>{t("login.forgotPassword")}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -127,4 +135,6 @@ const s = StyleSheet.create({
     width: "100%", padding: 14, alignItems: "center", marginTop: 16,
   },
   btnSecondaryText: { color: "#e63946", fontSize: 15, fontWeight: "600" },
+  forgot: { width: "100%", padding: 8, alignItems: "center" },
+  forgotText: { color: "#888", fontSize: 14, textDecorationLine: "underline" },
 });
