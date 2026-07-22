@@ -34,7 +34,8 @@
         "FOREGROUND_SERVICE_LOCATION",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "MODIFY_AUDIO_SETTINGS"
       ]
     },
     "plugins": [
@@ -57,8 +58,19 @@
       "expo-router",
       "expo-asset",
       "@react-native-community/datetimepicker",
-      "expo-audio"
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false
+        }
+      ]
     ],
-    "scheme": "grappasafe"
+    "scheme": "grappasafe",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e9213f46-e5c8-43d6-8c48-1bbddcc9fcb9"
+      }
+    }
   }
 }
