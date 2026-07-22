@@ -9,7 +9,7 @@ import {
   UserLocation,
   type LngLatBounds,
 } from "@maplibre/maplibre-react-native";
-import { AreaConfig, API_BASE } from "../lib/api";
+import { AreaConfig } from "../lib/api";
 import { localTileUriTemplate, getLocalManifest } from "../lib/tiles";
 import { useT } from "../lib/i18n";
 
@@ -90,9 +90,7 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
     <View style={[styles.wrap, style]}>
       <Map
         style={StyleSheet.absoluteFill}
-        // Online: lo stile vettoriale OTM assemblato dal backend (vector + fallback
-        // raster). Offline: stile locale minimo, con le tile raster scaricate sotto.
-        mapStyle={offlineReady ? BASE_STYLE : `${API_BASE}/vector-style.json`}
+        mapStyle={BASE_STYLE}
         logo={false}
         compass={false}
         attribution={false}
@@ -102,13 +100,10 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
           maxZoom={offlineReady ? maxZoom ?? 16 : undefined}
         />
 
-        {/* Solo offline: base OTM raster online sotto le tile locali (online la
-            base la fornisce già lo stile vettoriale OTM). */}
-        {offlineReady && (
-          <RasterSource id="otm-online" tiles={[ONLINE_URL]} tileSize={256} maxzoom={17}>
-            <Layer id="otm-online-layer" type="raster" />
-          </RasterSource>
-        )}
+        {/* Base OTM online (sotto): fallback dove il locale non copre. */}
+        <RasterSource id="otm-online" tiles={[ONLINE_URL]} tileSize={256} maxzoom={17}>
+          <Layer id="otm-online-layer" type="raster" />
+        </RasterSource>
 
         {/* Tile locali (sopra): coprono la zona scaricata anche senza rete. */}
         {offlineReady && (
