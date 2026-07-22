@@ -15,6 +15,7 @@ import {
   isMapDownloaded, downloadMap, deleteMap, getLocalManifest,
 } from "../lib/tiles";
 import { useT, LANGS, LANG_NAMES, getLang, setLang } from "../lib/i18n";
+import DateField from "../components/DateField";
 
 const INTERVAL_PRESETS_S = [5, 10, 15, 30, 60];
 
@@ -193,10 +194,9 @@ export default function SettingsScreen() {
       </View>
       <TextInput style={s.input} placeholder={t("settings.phone")} placeholderTextColor="#666"
         keyboardType="phone-pad" value={profile.telefono} onChangeText={(v) => setP({ telefono: v })} />
-      <TextInput style={s.input}
-        placeholder={t("register.dob") + " (" + t("register.dobPlaceholder") + ")"}
-        placeholderTextColor="#666"
-        value={profile.data_nascita} onChangeText={(v) => setP({ data_nascita: v })} />
+      <DateField style={s.input}
+        placeholder={t("register.dob")}
+        value={profile.data_nascita} onChange={(v) => setP({ data_nascita: v })} />
       <TextInput style={s.input} placeholder={t("register.bloodType")} placeholderTextColor="#666"
         autoCapitalize="characters" value={profile.gruppo_sanguigno} onChangeText={(v) => setP({ gruppo_sanguigno: v })} />
       <TextInput style={s.input} placeholder={t("register.emergencyContactName")} placeholderTextColor="#666"

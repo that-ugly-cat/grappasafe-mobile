@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import { register, getMe } from "../lib/api";
 import { saveUser } from "../lib/store";
 import { useT } from "../lib/i18n";
+import DateField from "../components/DateField";
 
 export default function RegisterScreen() {
   const t = useT();
@@ -83,11 +84,10 @@ export default function RegisterScreen() {
           style={s.input} placeholder={t("register.surname")} placeholderTextColor="#666"
           value={cognome} onChangeText={setCognome}
         />
-        <TextInput
+        <DateField
           style={s.input}
-          placeholder={t("register.dob") + " (" + t("register.dobPlaceholder") + ")"}
-          placeholderTextColor="#666"
-          value={dataNascita} onChangeText={setDataNascita}
+          placeholder={t("register.dob")}
+          value={dataNascita} onChange={setDataNascita}
         />
         <TextInput
           style={s.input} placeholder="Username" placeholderTextColor="#666"
