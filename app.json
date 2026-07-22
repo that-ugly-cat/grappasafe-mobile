@@ -56,7 +56,8 @@
       ],
       "expo-router",
       "expo-asset",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-audio"
     ],
     "scheme": "grappasafe"
   }
