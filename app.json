@@ -63,7 +63,8 @@
         {
           "microphonePermission": false
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "scheme": "grappasafe",
     "extra": {

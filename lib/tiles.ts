@@ -2,7 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { API_BASE } from "./api";
 
 // Le tile raster OpenTopoMap del cerchio monitorato, scaricate una volta dal
-// nostro server e usate offline via react-native-maps <LocalTile>.
+// nostro server e usate offline via la RasterSource di MapLibre (schema file://).
 
 const TILES_DIR = FileSystem.documentDirectory + "map-tiles/";
 const LOCAL_MANIFEST = TILES_DIR + "manifest.json";
@@ -22,9 +22,9 @@ export interface DownloadProgress {
   total: number;
 }
 
-/** Path template per <LocalTile> di react-native-maps (senza schema file://). */
-export function localTilePathTemplate(): string {
-  return TILES_DIR.replace("file://", "") + "{z}/{x}/{y}.png";
+/** Template file:// per la RasterSource offline di MapLibre. */
+export function localTileUriTemplate(): string {
+  return TILES_DIR + "{z}/{x}/{y}.png";
 }
 
 /** True se la mappa offline è stata scaricata per intero (marker = manifest locale). */

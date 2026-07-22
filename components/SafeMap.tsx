@@ -14,9 +14,9 @@ interface State {
   failed: boolean;
 }
 
-// react-native-maps è un modulo nativo: se non è presente nel runtime (es.
-// Expo Go senza la mappa) il render di MapView lancia. L'error boundary evita
-// che questo faccia cadere l'intera schermata di tracking, che è critica.
+// MapLibre è un modulo nativo: se non è presente nel runtime (es. Expo Go) il
+// render della mappa lancia. L'error boundary evita che questo faccia cadere
+// l'intera schermata di tracking, che è critica.
 export default class SafeMap extends Component<Props, State> {
   state: State = { failed: false };
 

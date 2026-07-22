@@ -1,8 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View, Text } from "react-native";
-import MapView, { Circle, LocalTile, UrlTile, Polyline } from "react-native-maps";
+import {
+  Map,
+  Camera,
+  RasterSource,
+  GeoJSONSource,
+  Layer,
+  UserLocation,
+  type LngLatBounds,
+} from "@maplibre/maplibre-react-native";
 import { AreaConfig } from "../lib/api";
-import { localTilePathTemplate, getLocalManifest } from "../lib/tiles";
+import { localTileUriTemplate, getLocalManifest } from "../lib/tiles";
 import { useT } from "../lib/i18n";
 
 interface Props {
@@ -16,63 +24,122 @@ interface Props {
 
 const ONLINE_URL = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
 
-// Mappa OpenTopoMap centrata sul cerchio monitorato. mapType="none" nasconde la
-// base di Google/Apple. In offline le tile locali stanno SOPRA una base online:
-// dove il locale ha la tile vince l'offline, altrove (adiacenti fuori dal
-// cerchio, o sotto lo zoom minimo scaricato) traspare l'online. Senza rete
-// resta solo la zona scaricata. Lo zoom-in è bloccato oltre il livello massimo.
+// Stile MapLibre minimo: solo uno sfondo scuro. Nessuna base Google/Apple →
+// nessuna API key. Le tile (OTM online + locali offline) e gli overlay li
+// montiamo come layer figli sopra questo sfondo, nell'ordine di rendering.
+const BASE_STYLE = JSON.stringify({
+  version: 8,
+  sources: {},
+  layers: [{ id: "bg", type: "background", paint: { "background-color": "#12121f" } }],
+});
+
+// MapLibre non ha un cerchio geografico in metri (il circle-layer è in pixel),
+// quindi il cerchio monitorato lo approssimiamo con un poligono GeoJSON.
+function circleFeature(lat: number, lon: number, radiusKm: number, points = 72): GeoJSON.Feature {
+  const latR = (radiusKm / 6371) * (180 / Math.PI);
+  const lonR = latR / Math.cos((lat * Math.PI) / 180);
+  const coords: [number, number][] = [];
+  for (let i = 0; i <= points; i++) {
+    const th = (i / points) * 2 * Math.PI;
+    coords.push([lon + lonR * Math.cos(th), lat + latR * Math.sin(th)]);
+  }
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } };
+}
+
+// Mappa OpenTopoMap centrata sul cerchio monitorato. Base OTM online sotto; in
+// offline le tile locali stanno SOPRA: dove il locale ha la tile vince
+// l'offline, altrove traspare l'online. Senza rete resta la sola zona scaricata.
+// Lo zoom-in è bloccato oltre il livello massimo scaricato (niente vuoti).
 export default function OfflineMap({ area, offlineReady, track, style }: Props) {
   const t = useT();
-  const delta = Math.max(0.5, (area.area_radius_km * 2.4) / 111);
-  const region = {
-    latitude: area.area_lat,
-    longitude: area.area_lon,
-    latitudeDelta: delta,
-    longitudeDelta: delta,
-  };
 
   const [maxZoom, setMaxZoom] = useState<number | null>(null);
-
   useEffect(() => {
-    if (offlineReady) {
-      getLocalManifest().then((m) => m && setMaxZoom(m.max_zoom));
-    } else {
-      setMaxZoom(null);
-    }
+    if (offlineReady) getLocalManifest().then((m) => m && setMaxZoom(m.max_zoom));
+    else setMaxZoom(null);
   }, [offlineReady]);
+
+  // Inquadratura iniziale: i bounds del cerchio (esatta e indipendente dallo
+  // schermo). Ordine LngLatBounds = [ovest, sud, est, nord]; 1.2x di margine.
+  const bounds = useMemo<LngLatBounds>(() => {
+    const latR = ((area.area_radius_km * 1.2) / 6371) * (180 / Math.PI);
+    const lonR = latR / Math.cos((area.area_lat * Math.PI) / 180);
+    return [
+      area.area_lon - lonR,
+      area.area_lat - latR,
+      area.area_lon + lonR,
+      area.area_lat + latR,
+    ];
+  }, [area.area_lat, area.area_lon, area.area_radius_km]);
+
+  const zone = useMemo(
+    () => circleFeature(area.area_lat, area.area_lon, area.area_radius_km),
+    [area.area_lat, area.area_lon, area.area_radius_km]
+  );
+
+  const trackFeature = useMemo<GeoJSON.Feature | null>(() => {
+    if (!track || track.length < 2) return null;
+    return {
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: track.map((p) => [p.longitude, p.latitude]) },
+    };
+  }, [track]);
 
   return (
     <View style={[styles.wrap, style]}>
-      <MapView
+      <Map
         style={StyleSheet.absoluteFill}
-        mapType="none"
-        initialRegion={region}
-        showsUserLocation
-        showsMyLocationButton={false}
-        toolbarEnabled={false}
-        maxZoomLevel={offlineReady ? maxZoom ?? 16 : undefined}
+        mapStyle={BASE_STYLE}
+        logo={false}
+        compass={false}
+        attribution={false}
       >
-        {/* Base online (sotto). Serve da fallback per le aree non scaricate. */}
-        <UrlTile urlTemplate={ONLINE_URL} maximumZ={17} tileSize={256} zIndex={-1} />
-        {/* Tile locali (sopra). Coprono la zona scaricata anche senza rete. */}
-        {offlineReady && (
-          <LocalTile pathTemplate={localTilePathTemplate()} tileSize={256} zIndex={0} />
-        )}
-        <Circle
-          center={{ latitude: area.area_lat, longitude: area.area_lon }}
-          radius={area.area_radius_km * 1000}
-          strokeColor="#e63946"
-          strokeWidth={2}
-          fillColor="rgba(230,57,70,0.08)"
-          zIndex={1}
+        <Camera
+          initialViewState={{ bounds }}
+          maxZoom={offlineReady ? maxZoom ?? 16 : undefined}
         />
-        {track && track.length >= 2 && (
-          <Polyline coordinates={track} strokeColor="#e74c3c" strokeWidth={4} zIndex={2} />
+
+        {/* Base OTM online (sotto): fallback dove il locale non copre. */}
+        <RasterSource id="otm-online" tiles={[ONLINE_URL]} tileSize={256} maxzoom={17}>
+          <Layer id="otm-online-layer" type="raster" />
+        </RasterSource>
+
+        {/* Tile locali (sopra): coprono la zona scaricata anche senza rete. */}
+        {offlineReady && (
+          <RasterSource
+            id="otm-offline"
+            tiles={[localTileUriTemplate()]}
+            tileSize={256}
+            maxzoom={maxZoom ?? 16}
+          >
+            <Layer id="otm-offline-layer" type="raster" />
+          </RasterSource>
         )}
-      </MapView>
-      {!offlineReady && (
-        <Text style={styles.badge}>{t("map.onlineBadge")}</Text>
-      )}
+
+        {/* Cerchio monitorato: riempimento tenue + bordo. */}
+        <GeoJSONSource id="zone" data={zone}>
+          <Layer id="zone-fill" type="fill" paint={{ "fill-color": "#e63946", "fill-opacity": 0.08 }} />
+          <Layer id="zone-line" type="line" paint={{ "line-color": "#e63946", "line-width": 2 }} />
+        </GeoJSONSource>
+
+        {/* Traccia della sessione attiva. */}
+        {trackFeature && (
+          <GeoJSONSource id="track" data={trackFeature}>
+            <Layer
+              id="track-line"
+              type="line"
+              paint={{ "line-color": "#e74c3c", "line-width": 4 }}
+              layout={{ "line-cap": "round", "line-join": "round" }}
+            />
+          </GeoJSONSource>
+        )}
+
+        {/* Pallino utente. */}
+        <UserLocation />
+      </Map>
+
+      {!offlineReady && <Text style={styles.badge}>{t("map.onlineBadge")}</Text>}
     </View>
   );
 }
