@@ -89,7 +89,8 @@ Stati della MapScreen:
 | `api.ts` | client HTTP (cookie di sessione), tutti gli endpoint, `API_BASE` |
 | `tracking.ts` | task GPS in background + accelerometro (picco-g) + geofence "fuori zona" |
 | `store.ts` | AsyncStorage: user, session, cookie, settings, cache area, cache messaggio emergenza |
-| `tiles.ts` | mappa offline: download/gestione tile, manifest, path per `LocalTile` |
+| `tiles.ts` | mappa offline: download/gestione tile, manifest, template `file://` per la RasterSource MapLibre |
+| `outbox.ts` | coda offline: pin GPS e SOS non inviati (assenza rete) bufferizzati e ri-spediti al ritorno della rete |
 
 ## Flusso utente
 
@@ -145,6 +146,23 @@ Il cerchio monitorato (centro + raggio) arriva da `GET /api/config`, non è hard
   a volume massimo** oltre alla vibrazione SOS — forza il volume media su Android e suona
   attraverso il silenzioso su iOS, ripristinando il volume alla chiusura. Il suono è in
   `assets/alarm.wav` (segnaposto generato, sostituibile con un file dedicato).
+
+## Resilienza offline (outbox)
+
+In ombra radio/cella un pin (o un SOS) **non si perde**: `lib/outbox.ts` lo bufferizza
+in locale e lo ri-spedisce al primo contatto utile.
+
+- **Pin GPS**: su errore di rete il punto va in coda (cap ~500, scarta i più vecchi).
+  A ogni tick la coda viene svuotata **dal più vecchio, prima del punto nuovo** — il
+  server usa il `ts` del payload e la macchina a stati vuole tempo monotono — così la
+  **traccia si ricompone** e **impatti/immobilità** del buco vengono valutati dal
+  server in ritardo ma **non persi**. `sendGps` distingue rete assente (riprova) da
+  rifiuto server (scarta, es. sessione finita).
+- **SOS manuale**: un invio fallito viene accodato e ritentato — dal task GPS **e** dal
+  polling dell'overlay, quindi funziona **anche senza sessione attiva**. L'overlay resta
+  "inviato" con la nota **"in attesa di rete"** finché il server non lo prende.
+- **Limiti (per scelta)**: recupero **differito** (la risposta real-time resta ritardata
+  quanto il buco); l'SOS in coda è timbrato all'orario di consegna, non del tap.
 
 ## Condivisione live
 
