@@ -5,6 +5,7 @@ import {
 import { sendEmergency, emergencyStatus } from "../lib/api";
 import { getCurrentPosition } from "../lib/tracking";
 import { loadEmergencyMessage, saveEmergencyMessage } from "../lib/store";
+import { queueEmergency, loadQueuedEmergency, clearQueuedEmergency } from "../lib/outbox";
 import { useT } from "../lib/i18n";
 
 const HOLD_MS = 3000;
@@ -24,6 +25,8 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
   const [phase, setPhase] = useState<Phase>(initialSent ? "sent" : "arming");
   const [message, setMessage] = useState(t("emergency.fallbackMsg"));
   const [acknowledged, setAcknowledged] = useState(false);
+  // true finché un SOS partito senza rete resta in coda (invio non confermato).
+  const [queued, setQueued] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef<Animated.CompositeAnimation | null>(null);
@@ -42,6 +45,26 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
     if (phase !== "sent") return;
     let alive = true;
     async function poll() {
+      // Se un SOS è rimasto in coda (partito senza rete), ritenta a ogni giro
+      // finché il server non lo prende — anche senza sessione attiva (quando il
+      // task GPS non gira). L'outbox è la fonte di verità dello stato "in coda".
+      const qe = await loadQueuedEmergency();
+      if (qe) {
+        try {
+          const res = await sendEmergency(qe.lat, qe.lon, qe.alt_m);
+          await clearQueuedEmergency();
+          if (res.message) {
+            setMessage(res.message);
+            saveEmergencyMessage(res.message);
+          }
+          if (alive) setQueued(false);
+        } catch {
+          return; // ancora niente rete: resta in coda, riprova al prossimo giro
+        }
+      } else if (alive) {
+        setQueued(false);
+      }
+
       const st = await emergencyStatus();
       if (!alive || !st) return;
       if (st.message) {
@@ -94,9 +117,16 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
       }
       setPhase("sent");
     } catch {
-      // invio fallito: torna ad armare, l'utente può ritentare
-      setPhase("arming");
-      progress.setValue(0);
+      // Invio fallito (quasi sempre assenza di rete): NON perdere l'SOS. Mettilo
+      // in coda, resta in stato "inviato" e segnala "in attesa di rete"; il retry
+      // parte dal polling qui sotto (e dal task GPS, se c'è una sessione attiva).
+      await queueEmergency({
+        lat: pos?.coords.latitude ?? 0,
+        lon: pos?.coords.longitude ?? 0,
+        alt_m: pos?.coords.altitude ?? null,
+      });
+      setQueued(true);
+      setPhase("sent");
     }
   }
 
@@ -144,7 +174,9 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
           ) : (
             <View style={s.pulse}>
               <ActivityIndicator color="#fff" />
-              <Text style={s.waiting}>{t("emergency.waiting")}</Text>
+              <Text style={s.waiting}>
+                {queued ? t("emergency.queued") : t("emergency.waiting")}
+              </Text>
             </View>
           )}
         </>

@@ -133,16 +133,24 @@ export interface GpsResponse {
   pending_emergency: { trigger: string; expires_in: number } | null;
 }
 
-export async function sendGps(payload: GpsPayload): Promise<GpsResponse | null> {
+// Esito distinto dell'invio di un pin: la outbox deve sapere se ritentare
+// (rete assente) o scartare (il server ha risposto ma rifiuta, es. sessione
+// finita → ritentare all'infinito sarebbe inutile).
+export type GpsSendResult =
+  | { kind: "ok"; response: GpsResponse }
+  | { kind: "network" }
+  | { kind: "rejected"; status: number };
+
+export async function sendGps(payload: GpsPayload): Promise<GpsSendResult> {
   try {
     const res = await request("/api/gps", {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return null;
-    return res.json();
+    if (res.ok) return { kind: "ok", response: await res.json() };
+    return { kind: "rejected", status: res.status };
   } catch {
-    return null;
+    return { kind: "network" };
   }
 }
 

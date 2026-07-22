@@ -3,7 +3,8 @@ import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
 import { Accelerometer } from "expo-sensors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { sendGps, sendEmergency, GpsPayload } from "./api";
+import { sendGps, sendEmergency, GpsPayload, GpsResponse } from "./api";
+import { enqueueGps, flushGps, loadQueuedEmergency, clearQueuedEmergency } from "./outbox";
 import { loadSettings, loadAreaConfig } from "./store";
 import { t } from "./i18n";
 
@@ -88,6 +89,59 @@ async function checkGeofence(lat: number, lon: number): Promise<void> {
   await AsyncStorage.setItem("out_of_zone_notified", String(now));
 }
 
+// Gestisce la risposta del server a un pin (sia live sia svuotato dalla coda):
+// apre/chiude il pending d'emergenza + la notifica locale. Idempotente sulla
+// notifica (una sola al primo rilevamento) così vale anche per punti arretrati.
+async function handleGpsResponse(resp: GpsResponse): Promise<void> {
+  if (resp.pending_emergency) {
+    await AsyncStorage.setItem(
+      "pending_emergency",
+      JSON.stringify(resp.pending_emergency)
+    );
+    const alreadyNotified = await AsyncStorage.getItem("pending_notif_id");
+    if (!alreadyNotified) {
+      const notifId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: t("notif.emergencyTitle"),
+          body: t("notif.emergencyBody"),
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          data: {
+            trigger:    resp.pending_emergency.trigger,
+            expires_in: resp.pending_emergency.expires_in,
+          },
+        },
+        trigger: null, // immediata
+      });
+      await AsyncStorage.setItem("pending_notif_id", notifId);
+    }
+  } else if (resp.pending_emergency === null) {
+    // Server conferma: nessun pending attivo → pulizia locale
+    const prev = await AsyncStorage.getItem("pending_emergency");
+    if (prev) {
+      await AsyncStorage.removeItem("pending_emergency");
+      const notifId = await AsyncStorage.getItem("pending_notif_id");
+      if (notifId) {
+        await Notifications.dismissNotificationAsync(notifId);
+        await AsyncStorage.removeItem("pending_notif_id");
+      }
+    }
+  }
+}
+
+// Ritenta un SOS manuale rimasto in coda (assenza di rete al momento del tap).
+// Safety-first: si riprova a ogni tick finché il server lo prende.
+async function flushQueuedEmergency(): Promise<void> {
+  const qe = await loadQueuedEmergency();
+  if (!qe) return;
+  try {
+    await sendEmergency(qe.lat, qe.lon, qe.alt_m);
+    await clearQueuedEmergency();
+  } catch {
+    // ancora niente rete: resta in coda, riprova al prossimo giro
+  }
+}
+
 // Il background task viene eseguito da expo-task-manager
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) return;
@@ -116,46 +170,20 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   await checkGeofence(lat, lon);
 
   try {
-    const resp = await sendGps(payload);
+    // 1. Svuota la coda offline PRIMA del punto nuovo (i pin vecchi hanno ts più
+    //    vecchi: la macchina a stati server-side vuole timestamp monotoni). E
+    //    ritenta un eventuale SOS manuale rimasto in coda.
+    await flushGps(sendGps, handleGpsResponse);
+    await flushQueuedEmergency();
 
-    if (!resp) return;  // errore di rete — mantieni stato locale invariato
-
-    if (resp.pending_emergency) {
-      // Salva per il polling del tracking screen
-      await AsyncStorage.setItem(
-        "pending_emergency",
-        JSON.stringify(resp.pending_emergency)
-      );
-      // Manda notifica locale solo al primo rilevamento (non ad ogni tick)
-      const alreadyNotified = await AsyncStorage.getItem("pending_notif_id");
-      if (!alreadyNotified) {
-        const notifId = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: t("notif.emergencyTitle"),
-            body: t("notif.emergencyBody"),
-            sound: true,
-            priority: Notifications.AndroidNotificationPriority.MAX,
-            data: {
-              trigger:    resp.pending_emergency.trigger,
-              expires_in: resp.pending_emergency.expires_in,
-            },
-          },
-          trigger: null, // immediata
-        });
-        await AsyncStorage.setItem("pending_notif_id", notifId);
-      }
-    } else if (resp.pending_emergency === null) {
-      // Server conferma: nessun pending attivo → pulizia locale
-      const prev = await AsyncStorage.getItem("pending_emergency");
-      if (prev) {
-        await AsyncStorage.removeItem("pending_emergency");
-        const notifId = await AsyncStorage.getItem("pending_notif_id");
-        if (notifId) {
-          await Notifications.dismissNotificationAsync(notifId);
-          await AsyncStorage.removeItem("pending_notif_id");
-        }
-      }
+    // 2. Invia il punto corrente.
+    const res = await sendGps(payload);
+    if (res.kind === "network") {
+      await enqueueGps(payload); // niente rete: in coda, non perso
+      return;
     }
+    if (res.kind === "rejected") return; // server raggiungibile ma rifiuta → scarta
+    await handleGpsResponse(res.response);
   } catch {
     // silenzioso — prossimo ciclo riprova
   }
