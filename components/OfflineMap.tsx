@@ -4,12 +4,13 @@ import {
   Map,
   Camera,
   RasterSource,
+  VectorSource,
   GeoJSONSource,
   Layer,
   UserLocation,
   type LngLatBounds,
 } from "@maplibre/maplibre-react-native";
-import { AreaConfig } from "../lib/api";
+import { AreaConfig, API_BASE } from "../lib/api";
 import { localTileUriTemplate, getLocalManifest } from "../lib/tiles";
 import { useT } from "../lib/i18n";
 
@@ -116,6 +117,36 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
             <Layer id="otm-offline-layer" type="raster" />
           </RasterSource>
         )}
+
+        {/* PROVA VETTORIALE (de-risk): tile OTM dal backend, qualche layer
+            non-testuale sopra la base raster. Colori vistosi apposta per capire
+            a colpo d'occhio se MapLibre renderizza le nostre .pbf. Da sostituire
+            con lo stile OTM completo (+ glyphs/sprite + curve) quando il canale
+            è validato. Niente glyphs qui → solo fill/line, nessuna etichetta. */}
+        <VectorSource
+          id="otm-vector"
+          tiles={[`${API_BASE}/vector-tiles/{z}/{x}/{y}.pbf`]}
+          maxzoom={14}
+        >
+          <Layer
+            id="v-water"
+            type="fill"
+            source-layer="water_polygons"
+            paint={{ "fill-color": "#4a90d9", "fill-opacity": 0.5 }}
+          />
+          <Layer
+            id="v-streets"
+            type="line"
+            source-layer="streets"
+            paint={{ "line-color": "#ff8c00", "line-width": 1.5 }}
+          />
+          <Layer
+            id="v-boundaries"
+            type="line"
+            source-layer="boundaries"
+            paint={{ "line-color": "#c000c0", "line-width": 1 }}
+          />
+        </VectorSource>
 
         {/* Cerchio monitorato: riempimento tenue + bordo. */}
         <GeoJSONSource id="zone" data={zone}>
