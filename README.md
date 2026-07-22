@@ -16,6 +16,11 @@ Backend e pannelli (admin/observer/user, OGN, emergenze) stanno nel repo
   la base è OpenTopoMap via tile)
 - GPS in background: `expo-location` + `expo-task-manager`; accelerometro:
   `expo-sensors`; tile offline: `expo-file-system`; notifiche: `expo-notifications`
+- Allarme sonoro: `expo-audio` + `react-native-volume-manager` (sirena in loop a
+  volume massimo, anche a telefono silenzioso); data di nascita:
+  `@react-native-community/datetimepicker`
+- **Lingue**: modulo i18n interno (`lib/i18n.ts`, senza dipendenze) — 8 lingue
+  (it/en/de/fr/pl/nl/es/cs), rilevate dal dispositivo con override in Impostazioni
 
 ## Requisiti e setup
 
@@ -60,10 +65,10 @@ Stati della MapScreen:
 |------|-------|
 | `index.tsx` | splash: se loggato → `/map`, altrimenti → `/login` |
 | `login.tsx` | login + logo consorzio (form in ScrollView per la tastiera) |
-| `register.tsx` | auto-registrazione pubblica (dati personali + emergenza) |
+| `register.tsx` | auto-registrazione pubblica (email obbligatoria, data di nascita via date picker, contatti d'emergenza); link "password dimenticata?" alla pagina web |
 | `map.tsx` | schermata unica: mappa + overlay + attività + emergenza + share |
-| `settings.tsx` | profilo, modalità mappa, frequenza GPS, alert zona, mappa offline, logout |
-| `alarm.tsx` | countdown full-screen su emergenza *pending* (auto-rilevata) |
+| `settings.tsx` | profilo (con email + data di nascita), vele/device + modale "?" sull'ID OGN, lingua, modalità mappa, frequenza GPS, alert zona, mappa offline, logout |
+| `alarm.tsx` | countdown full-screen su emergenza *pending*, con **sirena a volume massimo** + vibrazione SOS |
 | `_layout.tsx` | stack navigator + handler notifiche + SafeAreaProvider |
 
 ### Componenti (`components/`)
@@ -131,6 +136,13 @@ Il cerchio monitorato (centro + raggio) arriva da `GET /api/config`, non è hard
   un operatore prende in carico → messaggio "un operatore la sta gestendo"; quando
   risolve → il server **chiude la sessione** e l'app ferma il tracking (durante
   l'emergenza il GPS resta vivo per i soccorsi).
+- **Overlay a metà schermo**: durante la conferma (hold) l'overlay è a tutto schermo;
+  a emergenza **inviata** scende alla metà inferiore, lasciando la **mappa visibile e
+  navigabile** sopra (chip LIVE e ingranaggio nascosti mentre l'emergenza è aperta).
+- **Allarme sonoro**: sull'emergenza *pending* (`alarm.tsx`) parte una **sirena in loop
+  a volume massimo** oltre alla vibrazione SOS — forza il volume media su Android e suona
+  attraverso il silenzioso su iOS, ripristinando il volume alla chiusura. Il suono è in
+  `assets/alarm.wav` (segnaposto generato, sostituibile con un file dedicato).
 
 ## Condivisione live
 
@@ -170,9 +182,12 @@ Expo Go (SDK 54) basta per login, registrazione, sessione, GPS in foreground, ma
 overlay emergenza. **Non** è affidabile per:
 - **background location** a schermo spento;
 - **notifiche** complete — dall'SDK 53 le push remote sono rimosse da Expo Go (l'app
-  usa solo notifiche locali, ma il flusso emergenza va verificato fuori da Expo Go).
+  usa solo notifiche locali, ma il flusso emergenza va verificato fuori da Expo Go);
+- **moduli nativi aggiunti** — date picker (`@react-native-community/datetimepicker`) e
+  soprattutto il **suono d'allarme** (`expo-audio` + `react-native-volume-manager`) non
+  sono in Expo Go: degradano in silenzio (try/catch), ma vanno provati su dev build.
 
-Per entrambi serve una **dev build EAS**. `bundleIdentifier` / `package` =
+Per tutto questo serve una **dev build EAS**. `bundleIdentifier` / `package` =
 `eu.borant.grappasafe`.
 
 ## Verso gli app store — cosa manca
@@ -181,6 +196,8 @@ Per entrambi serve una **dev build EAS**. `bundleIdentifier` / `package` =
   notifiche complete, e va provata su device reale a schermo spento.
 - **Icone e splash**: `assets/icon.png`, `splash.png`, `adaptive-icon.png` sono
   **placeholder da 70 byte**. Servono asset veri prima di qualsiasi store.
+- **Suono d'allarme**: `assets/alarm.wav` è una sirena segnaposto generata — sostituirla
+  con il suono definitivo (mantenendo il nome file o aggiornando il `require` in `alarm.tsx`).
 - **Distribuzione**: decidere canale (APK diretto al consorzio vs Play Store / App Store).
 - **Calibrazione soglia impatto**: server-side (`impact_g_<attivita>`), da tarare con
   tracce reali di volo/atterraggio.
