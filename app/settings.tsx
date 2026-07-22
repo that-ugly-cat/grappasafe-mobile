@@ -136,8 +136,11 @@ export default function SettingsScreen() {
   async function handleSaveProfile() {
     setSavingProfile(true);
     try {
-      const ok = await updateMe(profile);
-      if (!ok) throw new Error();
+      const res = await updateMe(profile);
+      if (!res.ok) {
+        Alert.alert(t("common.error"), res.error ?? t("settings.profileSaveError"));
+        return;
+      }
       const fresh = await getMe();
       if (fresh) await saveUser(fresh);
       Alert.alert(t("settings.profile"), t("settings.profileSaved"));

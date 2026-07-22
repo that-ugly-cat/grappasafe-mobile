@@ -3,6 +3,13 @@ import { t } from "./i18n";
 
 export const API_BASE = "https://grappasafe.borant.eu";
 
+/** Translate a server error: prefer the machine-readable `code` (mapped to an
+ *  err.* i18n key), fall back to the server text, then a generic key. */
+function serverError(data: { code?: string; error?: string }, fallbackKey: string): string {
+  if (data?.code) return t("err." + data.code);
+  return data?.error ?? t(fallbackKey);
+}
+
 export type Attivita =
   | "PARAGLIDER"
   | "HANGGLIDER"
@@ -59,8 +66,8 @@ export async function login(
       body: JSON.stringify({ username, password }),
     });
     if (res.ok) return { ok: true };
-    const data = await res.json().catch(() => ({})) as { error?: string };
-    return { ok: false, error: data.error ?? t("login.loginFailed") };
+    const data = await res.json().catch(() => ({})) as { error?: string; code?: string };
+    return { ok: false, error: serverError(data, "login.loginFailed") };
   } catch {
     return { ok: false, error: t("common.netError") };
   }
@@ -95,8 +102,8 @@ export async function register(
       body: JSON.stringify(payload),
     });
     if (res.ok) return { ok: true };
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    return { ok: false, error: data.error ?? t("register.failed") };
+    const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    return { ok: false, error: serverError(data, "register.failed") };
   } catch {
     return { ok: false, error: t("common.netError") };
   }
@@ -321,14 +328,16 @@ export async function deleteDevice(id: number): Promise<boolean> {
 /** Aggiorna i campi profilo modificabili dall'utente (self-service). */
 export async function updateMe(
   profile: Partial<Omit<Profile, "id" | "username" | "is_admin">>
-): Promise<boolean> {
+): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await request("/api/me", {
       method: "PUT",
       body: JSON.stringify(profile),
     });
-    return res.ok;
+    if (res.ok) return { ok: true };
+    const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    return { ok: false, error: serverError(data, "settings.profileSaveError") };
   } catch {
-    return false;
+    return { ok: false, error: t("common.netError") };
   }
 }
