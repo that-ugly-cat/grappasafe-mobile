@@ -1,6 +1,6 @@
 # GrappaSafe Mobile
 
-App React Native + Expo per il monitoraggio outdoor del Consorzio di Volo del Grappa.
+App React Native + Expo per il monitoraggio outdoor del Consorzio Vivere il Grappa.
 Un utente avvia un'attività (volo, hike, bici…), il telefono manda posizione e
 accelerazione al backend, e in caso di emergenza — manuale o rilevata dal server —
 i soccorsi vengono allertati con l'identità e i contatti della persona.
