@@ -1,0 +1,5 @@
+{
+  "name": "wakelock",
+  "version": "1.0.0",
+  "description": "Partial wake lock nativo per tenere l'accelerometro vivo a schermo spento"
+}
