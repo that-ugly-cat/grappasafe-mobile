@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, Image, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform, Alert, Linking,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { login, getMe, API_BASE } from "../lib/api";
 import { saveUser } from "../lib/store";
 import { useT } from "../lib/i18n";
@@ -13,6 +13,13 @@ export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Username passato dal deep-link di ritorno dalla registrazione web
+  // (grappasafe://login?username=...): precompila il campo.
+  const params = useLocalSearchParams<{ username?: string }>();
+  useEffect(() => {
+    if (params.username) setUsername(String(params.username));
+  }, [params.username]);
 
   async function handleLogin() {
     if (!username.trim() || !password.trim()) {
