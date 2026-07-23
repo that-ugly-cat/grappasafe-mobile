@@ -254,3 +254,26 @@ telefono in tasca).
   sonore ripetute col canale); **latenza** fino a ~15s (accelerabile mentre `locate` è attivo).
 - **Extra**: bottone **silenzia** lato utente (persona cosciente), **audit** di chi attiva il
   locate, e **batteria %** in dashboard (telefono scarico = inutile far suonare).
+
+### Comunicazione operatore → persona (messaggio) — via leggera
+L'operatore **rassicura/istruisce** la persona ("resta fermo, arriviamo tra 10 minuti").
+
+- **Come**: rende **dinamico** l'`emergency_user_message` (oggi statico, configurato in admin).
+  L'operatore scrive (o registra un audio breve) per lo specifico incidente; il server lo manda
+  sul **canale di polling già esistente**; l'app **mostra il testo** e/o **riproduce l'audio**.
+- **Costo**: basso — zero WebRTC, microfono e TURN; riusa polling + riproduzione audio.
+- **Vincolo**: lo stesso del locate (app viva / sessione attiva).
+- **Limite**: **unidirezionale** — l'operatore parla, non sente la persona.
+
+### Chiamata dati bidirezionale (WebRTC) — via pesante
+Audio (o video) in **tempo reale** operatore↔persona via internet, senza chiamata cellulare.
+
+- **Stack**: `react-native-webrtc` (app, modulo nativo → dev build, +size/complessità), WebRTC del
+  browser (dashboard), **signaling via WebSocket** (FastAPI; il polling da 15s è troppo lento per
+  offer/answer/ICE), **STUN + TURN self-hostato (coturn)** sul VPS per il NAT delle reti mobili.
+- **Permessi**: rientra `RECORD_AUDIO` (microfono, qui **giustificato**); camera per il video.
+- **Nodi**: (1) l'app deve essere **viva** (sessione attiva; altrimenti FCM per risvegliarla);
+  (2) persona svenuta **non può rispondere** → serve **auto-answer** del microfono → fortemente
+  **privacy-sensibile**: controllo accessi stretto, **audit**, indicatore visibile che il mic è live.
+- **Verdetto**: la feature più pesante di tutte; farla solo se serve davvero il **duplex** (o
+  sentire l'ambiente attorno alla persona). Altrimenti la "via leggera" sopra copre gran parte del valore.
