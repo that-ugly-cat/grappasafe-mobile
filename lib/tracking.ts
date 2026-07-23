@@ -4,7 +4,10 @@ import * as TaskManager from "expo-task-manager";
 import { Accelerometer } from "expo-sensors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendGps, sendEmergency, GpsPayload, GpsResponse } from "./api";
-import { enqueueGps, flushGps, loadQueuedEmergency, clearQueuedEmergency } from "./outbox";
+import {
+  enqueueGps, flushGps, loadQueuedEmergency, clearQueuedEmergency,
+  markEmergencyFailed, clearEmergencyFailed,
+} from "./outbox";
 import { acquireWakeLock, releaseWakeLock } from "./wakelock";
 import { loadSettings, loadAreaConfig } from "./store";
 import { t } from "./i18n";
@@ -139,16 +142,37 @@ async function handleGpsResponse(resp: GpsResponse): Promise<void> {
 async function flushQueuedEmergency(): Promise<void> {
   const qe = await loadQueuedEmergency();
   if (!qe) return;
-  try {
-    await sendEmergency(qe.lat, qe.lon, qe.alt_m);
+  const res = await sendEmergency(qe.lat, qe.lon, qe.alt_m);
+  if (res.kind === "ok") {
     await clearQueuedEmergency();
-  } catch {
-    // ancora niente rete: resta in coda, riprova al prossimo giro
+    await clearEmergencyFailed();
+  } else if (res.kind === "rejected" && res.status >= 400 && res.status < 500) {
+    // 4xx = rifiuto permanente (es. sessione non valida): togli dalla coda e
+    // ferma il loop. Ma segnala il fallimento col flag: l'overlay (se aperto)
+    // ritenta lo stesso SOS in parallelo e, se il task vince la corsa svuotando
+    // la coda, senza flag non vedrebbe mai il rifiuto → mostrerebbe "in attesa"
+    // all'infinito. Col flag mostra l'errore chiunque consumi il rifiuto.
+    await clearQueuedEmergency();
+    await markEmergencyFailed();
   }
+  // network o 5xx (server giù, transitorio) → resta in coda, riprova: è il
+  // backstop headless, non vogliamo perdere un SOS su un blip del server.
 }
 
-// Il background task viene eseguito da expo-task-manager
-TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
+// Il background task. Le invocazioni sono SERIALIZZATE: su rete lenta expo può
+// richiamare il task prima che il precedente abbia finito (le await di rete
+// possono durare più dell'intervallo GPS), e due invocazioni concorrenti
+// farebbero read-modify-write in conflitto sulla outbox (pin duplicati o persi)
+// e sul reset di _accelPeak. La catena garantisce un'invocazione per volta, in
+// ordine; il .catch tiene viva la catena anche se un giro lancia.
+let _taskChain: Promise<void> = Promise.resolve();
+
+TaskManager.defineTask(LOCATION_TASK, ({ data, error }) => {
+  _taskChain = _taskChain.then(() => handleLocationUpdate(data, error)).catch(() => {});
+  return _taskChain;
+});
+
+async function handleLocationUpdate(data: unknown, error: unknown): Promise<void> {
   if (error) return;
 
   // Auto-riparazione. startAccelerometer()/acquireWakeLock() girano solo in
@@ -207,7 +231,7 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   } catch {
     // silenzioso — prossimo ciclo riprova
   }
-});
+}
 
 export async function requestPermissions(): Promise<boolean> {
   const { status: fg } = await Location.requestForegroundPermissionsAsync();

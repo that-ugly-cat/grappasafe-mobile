@@ -88,3 +88,24 @@ export async function loadQueuedEmergency(): Promise<QueuedEmergency | null> {
 export async function clearQueuedEmergency(): Promise<void> {
   await AsyncStorage.removeItem(EM_KEY);
 }
+
+// Flag "l'ultimo SOS è stato RIFIUTATO dal server" (4xx permanente). È il ponte
+// tra il task di background e l'overlay: entrambi ritentano lo stesso SOS in
+// coda, e se il task vince la corsa e svuota la coda su un 4xx (headless, senza
+// UI), l'overlay non vedrebbe mai il rifiuto e resterebbe a mentire "in attesa"
+// (o si chiuderebbe in silenzio). Con il flag, chiunque consumi il rifiuto lo
+// segnala, e l'overlay mostra comunque l'errore. Va azzerato all'inizio di un
+// nuovo SOS e quando c'è un'emergenza server-attiva (che non è un fallimento).
+const EM_FAILED_KEY = "gs_em_failed";
+
+export async function markEmergencyFailed(): Promise<void> {
+  await AsyncStorage.setItem(EM_FAILED_KEY, "1");
+}
+
+export async function loadEmergencyFailed(): Promise<boolean> {
+  return (await AsyncStorage.getItem(EM_FAILED_KEY)) === "1";
+}
+
+export async function clearEmergencyFailed(): Promise<void> {
+  await AsyncStorage.removeItem(EM_FAILED_KEY);
+}

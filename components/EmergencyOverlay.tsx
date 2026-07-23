@@ -5,7 +5,10 @@ import {
 import { sendEmergency, emergencyStatus } from "../lib/api";
 import { getCurrentPosition } from "../lib/tracking";
 import { loadEmergencyMessage, saveEmergencyMessage } from "../lib/store";
-import { queueEmergency, loadQueuedEmergency, clearQueuedEmergency } from "../lib/outbox";
+import {
+  queueEmergency, loadQueuedEmergency, clearQueuedEmergency,
+  markEmergencyFailed, loadEmergencyFailed, clearEmergencyFailed,
+} from "../lib/outbox";
 import { playConfirm } from "../lib/sfx";
 import { useT } from "../lib/i18n";
 
@@ -28,6 +31,10 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
   const [acknowledged, setAcknowledged] = useState(false);
   // true finché un SOS partito senza rete resta in coda (invio non confermato).
   const [queued, setQueued] = useState(false);
+  // true se il server ha RIFIUTATO l'SOS (ritentare non aiuta): mostra un errore
+  // esplicito invece di fingere "in attesa". Il ref ferma il polling successivo.
+  const [failed, setFailed] = useState(false);
+  const failedRef = useRef(false);
   const [countdown, setCountdown] = useState(3);
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef<Animated.CompositeAnimation | null>(null);
@@ -46,24 +53,42 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
     if (phase !== "sent") return;
     let alive = true;
     async function poll() {
+      if (failedRef.current) return; // SOS rifiutato: fermo il polling, resta l'errore
       // Se un SOS è rimasto in coda (partito senza rete), ritenta a ogni giro
       // finché il server non lo prende — anche senza sessione attiva (quando il
       // task GPS non gira). L'outbox è la fonte di verità dello stato "in coda".
       const qe = await loadQueuedEmergency();
       if (qe) {
-        try {
-          const res = await sendEmergency(qe.lat, qe.lon, qe.alt_m);
-          await clearQueuedEmergency();
-          if (res.message) {
-            setMessage(res.message);
-            saveEmergencyMessage(res.message);
-          }
-          if (alive) setQueued(false);
-        } catch {
-          return; // ancora niente rete: resta in coda, riprova al prossimo giro
+        const res = await sendEmergency(qe.lat, qe.lon, qe.alt_m);
+        if (res.kind === "network") return; // niente rete: resta in coda, riprova
+        await clearQueuedEmergency();        // ok o rejected: esce dalla coda
+        if (res.kind === "rejected") {
+          // Server raggiungibile ma rifiuta (es. sessione non valida): ritentare
+          // è inutile. Niente "in attesa" bugiardo — segnala il fallimento così
+          // la persona sa di dover chiamare direttamente i soccorsi.
+          await markEmergencyFailed();
+          failedRef.current = true;
+          if (alive) { setQueued(false); setFailed(true); }
+          return;
         }
-      } else if (alive) {
-        setQueued(false);
+        await clearEmergencyFailed();
+        if (res.message) {
+          setMessage(res.message);
+          saveEmergencyMessage(res.message);
+        }
+        if (alive) setQueued(false);
+      } else {
+        // Coda vuota. Il task di background può aver già consumato un rifiuto 4xx
+        // (headless), lasciando solo il flag: mostra l'errore qui invece di
+        // fingere "in attesa" o chiudere in silenzio. Solo per un overlay aperto
+        // da un SOS di QUESTA sessione (non initialSent): un overlay su
+        // un'emergenza server-attiva non deve leggere un flag stale.
+        if (!initialSent && (await loadEmergencyFailed())) {
+          failedRef.current = true;
+          if (alive) { setQueued(false); setFailed(true); }
+          return;
+        }
+        if (alive) setQueued(false);
       }
 
       const st = await emergencyStatus();
@@ -109,31 +134,43 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
 
   async function fire() {
     setPhase("sending");
+    await clearEmergencyFailed(); // nuovo SOS: azzera un eventuale flag precedente
     Vibration.vibrate([0, 300, 100, 300]);
     const pos = await getCurrentPosition();
-    try {
-      const res = await sendEmergency(
-        pos?.coords.latitude ?? 0,
-        pos?.coords.longitude ?? 0,
-        pos?.coords.altitude ?? null
-      );
-      if (res.message) {
-        setMessage(res.message);
-        saveEmergencyMessage(res.message);
-      }
-      setPhase("sent");
-    } catch {
-      // Invio fallito (quasi sempre assenza di rete): NON perdere l'SOS. Mettilo
-      // in coda, resta in stato "inviato" e segnala "in attesa di rete"; il retry
-      // parte dal polling qui sotto (e dal task GPS, se c'è una sessione attiva).
-      await queueEmergency({
-        lat: pos?.coords.latitude ?? 0,
-        lon: pos?.coords.longitude ?? 0,
-        alt_m: pos?.coords.altitude ?? null,
-      });
+    const lat = pos?.coords.latitude ?? 0;
+    const lon = pos?.coords.longitude ?? 0;
+    const alt = pos?.coords.altitude ?? null;
+    const res = await sendEmergency(lat, lon, alt);
+    if (res.kind === "network") {
+      // Assenza di rete: NON perdere l'SOS. In coda, resta "inviato" con "in
+      // attesa di rete"; il retry parte dal polling qui sotto (e dal task GPS,
+      // se c'è una sessione attiva).
+      await queueEmergency({ lat, lon, alt_m: alt });
       setQueued(true);
       setPhase("sent");
+      return;
     }
+    if (res.kind === "rejected") {
+      // Server raggiungibile ma rifiuta: ritentare non aiuta. Segnala il
+      // fallimento invece di fingere l'invio riuscito.
+      await markEmergencyFailed();
+      failedRef.current = true;
+      setFailed(true);
+      setPhase("sent");
+      return;
+    }
+    if (res.message) {
+      setMessage(res.message);
+      saveEmergencyMessage(res.message);
+    }
+    setPhase("sent");
+  }
+
+  // Chiusura del box "SOS non riuscito": azzera il flag così un'emergenza futura
+  // riparte pulita, poi chiude l'overlay.
+  async function dismissFailed() {
+    await clearEmergencyFailed();
+    onClose();
   }
 
   const ringWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
@@ -176,6 +213,13 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
             <View style={s.ackBox}>
               <Text style={s.ackTitle}>{t("emergency.ackTitle")}</Text>
               <Text style={s.ackText}>{t("emergency.ackText")}</Text>
+            </View>
+          ) : failed ? (
+            <View style={s.failedBox}>
+              <Text style={s.failedText}>{t("emergency.failed")}</Text>
+              <Pressable onPress={dismissFailed} hitSlop={16} style={s.failedDismissBtn}>
+                <Text style={s.failedDismiss}>{t("common.cancel")}</Text>
+              </Pressable>
             </View>
           ) : (
             <View style={s.pulse}>
@@ -237,5 +281,13 @@ const s = StyleSheet.create({
   },
   ackTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 6 },
   ackText: { color: "#fff", fontSize: 15, textAlign: "center", lineHeight: 21 },
+  failedBox: {
+    marginTop: 20, backgroundColor: "rgba(0,0,0,0.28)",
+    borderRadius: 12, padding: 18, alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.85)",
+  },
+  failedText: { color: "#fff", fontSize: 16, fontWeight: "bold", textAlign: "center", lineHeight: 22 },
+  failedDismissBtn: { marginTop: 14 },
+  failedDismiss: { color: "#fff", fontSize: 15, textDecorationLine: "underline", padding: 8 },
 });
 

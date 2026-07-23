@@ -3,6 +3,23 @@ import { t } from "./i18n";
 
 export const API_BASE = "https://grappasafe.borant.eu";
 
+// Timeout di rete. Su mobile una connessione può restare appesa senza mai
+// risolvere (socket aperto, nessun dato). Senza abort, una richiesta bloccata
+// terrebbe fermo il task GPS (e lo svuotamento della sua coda) a tempo
+// indefinito. 15s = pari all'intervallo GPS: una richiesta stallata non tiene
+// occupato il task più di un ciclo (poi il punto va in coda e si riprova).
+const REQUEST_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Translate a server error: prefer the machine-readable `code` (mapped to an
  *  err.* i18n key), fall back to the server text, then a generic key. */
 function serverError(data: { code?: string; error?: string }, fallbackKey: string): string {
@@ -43,7 +60,7 @@ async function request(
   if (cookie) {
     headers["Cookie"] = cookie;
   }
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { ...options, headers });
 
   // salva Set-Cookie se presente
   const setCookie = res.headers.get("set-cookie");
@@ -143,19 +160,35 @@ export async function cancelEmergency(): Promise<void> {
   if (!res.ok) throw new Error(`cancelEmergency: ${res.status}`);
 }
 
+// Esito distinto dell'invio di un SOS, come per il GPS: la coda deve sapere se
+// ritentare (rete assente) o smettere (il server ha risposto ma rifiuta →
+// ritentare all'infinito è inutile e mente all'utente con "in attesa").
+export type EmergencySendResult =
+  | { kind: "ok"; message?: string }
+  | { kind: "network" }
+  | { kind: "rejected"; status: number };
+
 /** Invia un SOS manuale. Il server gestisce sia il caso con sessione attiva
- *  sia senza. Ritorna il messaggio da mostrare all'utente (se presente). */
+ *  sia senza. `ok` porta il messaggio da mostrare; `network` = rete assente
+ *  (ritenta); `rejected` = server raggiungibile ma rifiuta (non ritentare). */
 export async function sendEmergency(
   lat: number,
   lon: number,
   alt_m: number | null
-): Promise<{ message?: string }> {
-  const res = await request("/api/emergency", {
-    method: "POST",
-    body: JSON.stringify({ lat, lon, alt_m }),
-  });
-  if (!res.ok) throw new Error(`sendEmergency: ${res.status}`);
-  return (await res.json().catch(() => ({}))) as { message?: string };
+): Promise<EmergencySendResult> {
+  try {
+    const res = await request("/api/emergency", {
+      method: "POST",
+      body: JSON.stringify({ lat, lon, alt_m }),
+    });
+    if (res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      return { kind: "ok", message: data.message };
+    }
+    return { kind: "rejected", status: res.status };
+  } catch {
+    return { kind: "network" };
+  }
 }
 
 export interface EmergencyStatus {
@@ -225,7 +258,7 @@ export interface LiveMap {
  *  È lo stesso endpoint che alimenta il link condivisibile. */
 export async function getLiveMap(shareToken: string): Promise<LiveMap | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/map/${shareToken}`);
+    const res = await fetchWithTimeout(`${API_BASE}/api/map/${shareToken}`);
     if (!res.ok) return null;
     return res.json();
   } catch {
