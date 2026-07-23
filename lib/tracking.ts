@@ -152,8 +152,11 @@ async function flushQueuedEmergency(): Promise<void> {
     // ritenta lo stesso SOS in parallelo e, se il task vince la corsa svuotando
     // la coda, senza flag non vedrebbe mai il rifiuto → mostrerebbe "in attesa"
     // all'infinito. Col flag mostra l'errore chiunque consumi il rifiuto.
-    await clearQueuedEmergency();
+    // Flag PRIMA di svuotare: un poll dell'overlay che si interleava tra le due
+    // vedrebbe altrimenti coda vuota + flag assente → potrebbe chiudersi in
+    // silenzio. Con quest'ordine vede sempre o la coda (ritenta) o il flag.
     await markEmergencyFailed();
+    await clearQueuedEmergency();
   }
   // network o 5xx (server giù, transitorio) → resta in coda, riprova: è il
   // backstop headless, non vogliamo perdere un SOS su un blip del server.

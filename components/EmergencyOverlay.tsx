@@ -60,17 +60,23 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
       const qe = await loadQueuedEmergency();
       if (qe) {
         const res = await sendEmergency(qe.lat, qe.lon, qe.alt_m);
-        if (res.kind === "network") return; // niente rete: resta in coda, riprova
-        await clearQueuedEmergency();        // ok o rejected: esce dalla coda
+        // Rete assente o server giù (5xx, transitorio): resta in coda, riprova —
+        // non perdere l'SOS su un blip. Solo un 4xx è un rifiuto permanente
+        // (coerente col task, che sul 5xx tiene in coda).
+        if (res.kind === "network") return;
+        if (res.kind === "rejected" && res.status >= 500) return;
         if (res.kind === "rejected") {
-          // Server raggiungibile ma rifiuta (es. sessione non valida): ritentare
-          // è inutile. Niente "in attesa" bugiardo — segnala il fallimento così
-          // la persona sa di dover chiamare direttamente i soccorsi.
+          // 4xx = rifiuto permanente (es. sessione non valida): ritentare è
+          // inutile. Flag PRIMA di svuotare (coerente col task); niente "in
+          // attesa" bugiardo — segnala il fallimento così la persona sa di dover
+          // chiamare direttamente i soccorsi.
           await markEmergencyFailed();
+          await clearQueuedEmergency();
           failedRef.current = true;
           if (alive) { setQueued(false); setFailed(true); }
           return;
         }
+        await clearQueuedEmergency(); // ok: esce dalla coda
         await clearEmergencyFailed();
         if (res.message) {
           setMessage(res.message);
@@ -141,18 +147,18 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
     const lon = pos?.coords.longitude ?? 0;
     const alt = pos?.coords.altitude ?? null;
     const res = await sendEmergency(lat, lon, alt);
-    if (res.kind === "network") {
-      // Assenza di rete: NON perdere l'SOS. In coda, resta "inviato" con "in
-      // attesa di rete"; il retry parte dal polling qui sotto (e dal task GPS,
-      // se c'è una sessione attiva).
+    if (res.kind === "network" || (res.kind === "rejected" && res.status >= 500)) {
+      // Assenza di rete o server giù (5xx, transitorio): NON perdere l'SOS. In
+      // coda, resta "inviato" con "in attesa"; il retry parte dal polling qui
+      // sotto (e dal task GPS, se c'è una sessione attiva).
       await queueEmergency({ lat, lon, alt_m: alt });
       setQueued(true);
       setPhase("sent");
       return;
     }
     if (res.kind === "rejected") {
-      // Server raggiungibile ma rifiuta: ritentare non aiuta. Segnala il
-      // fallimento invece di fingere l'invio riuscito.
+      // 4xx = il server rifiuta in modo permanente: ritentare non aiuta. Segnala
+      // il fallimento invece di fingere l'invio riuscito.
       await markEmergencyFailed();
       failedRef.current = true;
       setFailed(true);
