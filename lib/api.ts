@@ -78,36 +78,6 @@ export async function logout(): Promise<void> {
   await AsyncStorage.removeItem("session_cookie");
 }
 
-export interface RegisterPayload {
-  username: string;
-  password: string;
-  nome: string;
-  cognome: string;
-  email: string;
-  telefono?: string;
-  data_nascita?: string;
-  gruppo_sanguigno?: string;
-  emergenza_contatto?: string;
-  emergenza_telefono?: string;
-}
-
-/** Auto-registrazione pubblica. In caso di successo il server logga già
- *  l'utente (Set-Cookie), quindi la sessione è pronta come dopo il login. */
-export async function register(
-  payload: RegisterPayload
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await request("/api/register", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) return { ok: true };
-    const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
-    return { ok: false, error: serverError(data, "register.failed") };
-  } catch {
-    return { ok: false, error: t("common.netError") };
-  }
-}
 
 export async function startSession(
   attivita: Attivita

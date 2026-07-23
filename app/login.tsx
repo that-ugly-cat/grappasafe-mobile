@@ -90,7 +90,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={s.btnSecondary}
-          onPress={() => router.push("/register")}
+          onPress={() => Linking.openURL(`${API_BASE}/register`)}
           disabled={loading}
         >
           <Text style={s.btnSecondaryText}>{t("login.noAccount")}</Text>

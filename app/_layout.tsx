@@ -80,7 +80,6 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index"    options={{ headerShown: false }} />
         <Stack.Screen name="login"    options={{ title: "GrappaSafe", headerShown: false }} />
-        <Stack.Screen name="register" options={{ title: t("nav.register") }} />
         <Stack.Screen name="map"      options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: t("nav.settings") }} />
         <Stack.Screen
