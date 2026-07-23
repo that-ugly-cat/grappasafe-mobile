@@ -150,8 +150,13 @@ Il cerchio monitorato (centro + raggio) arriva da `GET /api/config`, non è hard
   a volume massimo** oltre alla vibrazione SOS — forza il volume media su Android e suona
   attraverso il silenzioso su iOS, ripristinando il volume alla chiusura. Il suono è in
   `assets/alarm.wav` (sirena wail ~6s, segnaposto sostituibile). **Lo stesso `alarm.wav`**
-  è anche il suono della **notifica** d'emergenza (canale Android ad alta priorità), così
-  suona forte anche prima che la schermata si apra.
+  è anche il suono della **notifica** d'emergenza (canale Android `emergency-v3`, importance
+  MAX), così suona forte anche prima che la schermata si apra. Il canale usa
+  `audioAttributes` con **usage `ALARM`** + `enforceAudibility`: il suono gira sullo **stream
+  sveglia**, che la modalità silenziosa **non** azzera (a differenza dello stream notifiche),
+  quindi la pre-emergenza si sente anche a telefono silenzioso e schermo spento. Le
+  impostazioni di un canale sono immutabili: cambiare gli attributi richiede un id nuovo
+  (da qui il suffisso `-vN`).
 - **Conferma sonora** (`lib/sfx.ts`, `assets/confirm.wav`): un breve "don-din" alla
   **presa in carico** da parte dell'operatore e quando l'utente conferma **"sto bene"**.
 

@@ -31,15 +31,24 @@ export default function RootLayout() {
   useEffect(() => {
     // Crea il canale Android ad alta priorità (ignorato su iOS)
     if (Platform.OS === "android") {
-      // id "-v2": le impostazioni di un canale sono immutabili dopo la creazione,
-      // quindi per applicare il suono dedicato serve un canale nuovo.
-      Notifications.setNotificationChannelAsync("emergency-v2", {
+      // id "-v3": le impostazioni di un canale sono immutabili dopo la creazione,
+      // quindi per cambiare gli audioAttributes serve un canale nuovo.
+      Notifications.setNotificationChannelAsync("emergency-v3", {
         name:             t("notif.channelName"),
         importance:       Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor:       "#e63946",
         sound:            "alarm.wav",
         bypassDnd:        true,
+        // Suono sullo stream SVEGLIA, non su quello notifiche: la modalità
+        // silenziosa azzera il ring/notification stream ma NON quello alarm,
+        // quindi la pre-emergenza si sente anche a telefono in silenzioso e
+        // schermo spento. enforceAudibility forza l'audibilità anche in DND.
+        audioAttributes: {
+          usage:       Notifications.AndroidAudioUsage.ALARM,
+          contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+          flags:       { enforceAudibility: true, requestHardwareAudioVideoSynchronization: false },
+        },
       });
     }
 

@@ -112,9 +112,10 @@ async function handleGpsResponse(resp: GpsResponse): Promise<void> {
             expires_in: resp.pending_emergency.expires_in,
           },
         },
-        // Instrada sul canale "emergency-v2" (MAX + bypassDnd + suono dedicato):
-        // senza channelId la notifica finiva sul canale default, spesso muto/basso.
-        trigger: { channelId: "emergency-v2" },
+        // Instrada sul canale "emergency-v3" (MAX + bypassDnd + suono sullo stream
+        // sveglia): senza channelId la notifica finiva sul canale default, spesso
+        // muto/basso; con lo stream sveglia si sente anche in silenzioso.
+        trigger: { channelId: "emergency-v3" },
       });
       await AsyncStorage.setItem("pending_notif_id", notifId);
     }
