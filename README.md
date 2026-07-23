@@ -120,9 +120,10 @@ MapLibre (schema `file://`). Dettagli in `OfflineMap.tsx`:
 - in offline le tile locali stanno **sopra** una base OpenTopoMap online: dentro il
   cerchio vince l'offline, fuori traspare l'online — e senza rete resta solo la zona
   scaricata;
-- **passaggio per zoom**: la source offline ha il suo range reale `[min_zoom, max_zoom]`
-  dal manifest, così sotto il minimo o oltre il massimo scaricato subentrano le tile
-  online nitide invece di overzoom sfocato o zoom bloccato.
+- **clamp di zoom in offline**: la camera è vincolata al range scaricato
+  `[min_zoom, max_zoom]` (dal manifest), così non si esce mai dalle tile locali —
+  niente overzoom sfocato né schermo nero ai bordi di zoom. Per andare oltre (vista più
+  larga o dettaglio z17 online) si passa alla **modalità online** (base completa, nessun clamp).
 
 Il cerchio monitorato (centro + raggio) arriva da `GET /api/config`, non è hardcodato.
 

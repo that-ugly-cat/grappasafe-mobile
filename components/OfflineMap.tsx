@@ -104,13 +104,14 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
         compass={false}
         attribution={false}
       >
-        {/* In offline si clampa solo il MINIMO al pavimento delle tile scaricate:
-            sotto z9 senza rete sarebbe schermo nero (zoom-out per l'overview → vuoto).
-            Il massimo resta libero, così lo zoom-in raggiunge le online z17 nitide
-            (con rete). Online (offlineReady false) nessun clamp: la base copre tutto. */}
+        {/* In offline la camera è clampata al range delle tile scaricate [min,max]:
+            fuori da lì (zoom-out o zoom-in) senza rete sarebbe schermo nero, quindi si
+            resta dentro il downloaded. Per andare oltre (vista più larga o dettaglio z17
+            online) si passa alla modalità online. Online: nessun clamp, la base copre tutto. */}
         <Camera
           initialViewState={{ bounds }}
           minZoom={offlineReady ? minZoom ?? 9 : undefined}
+          maxZoom={offlineReady ? maxZoom ?? 16 : undefined}
         />
 
         {/* Base OTM online (sotto): fallback dove il locale non copre. */}
@@ -130,16 +131,10 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
             minzoom={minZoom ?? 9}
             maxzoom={maxZoom ?? 16}
           >
-            {/* minzoom sulla source: sotto il livello minimo scaricato l'offline
-                non è attiva → traspare la base online (niente tile stirate).
-                maxzoom sul layer = un filo oltre il massimo scaricato: le locali si
-                vedono fino al loro top, oltre lasciano il posto alle online nitide. */}
-            <Layer
-              id="otm-offline-layer"
-              type="raster"
-              beforeId="zone-fill"
-              maxzoom={(maxZoom ?? 16) + 1}
-            />
+            {/* La source ha il range reale [min,max] dal manifest e la camera è
+                clampata allo stesso range in offline, così non si esce mai dalle tile
+                scaricate (niente tile stirate né vuoti). */}
+            <Layer id="otm-offline-layer" type="raster" beforeId="zone-fill" />
           </RasterSource>
         )}
 
