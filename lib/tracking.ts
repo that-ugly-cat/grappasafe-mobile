@@ -288,14 +288,6 @@ export async function stopTracking(): Promise<void> {
   releaseWakeLock();
 }
 
-export async function triggerEmergency(
-  lat: number,
-  lon: number,
-  alt_m: number | null
-): Promise<void> {
-  await sendEmergency(lat, lon, alt_m);
-}
-
 export async function getCurrentPosition(): Promise<Location.LocationObject | null> {
   try {
     return await Location.getCurrentPositionAsync({
