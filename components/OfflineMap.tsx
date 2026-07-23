@@ -54,9 +54,18 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
   const t = useT();
 
   const [maxZoom, setMaxZoom] = useState<number | null>(null);
+  const [minZoom, setMinZoom] = useState<number | null>(null);
   useEffect(() => {
-    if (offlineReady) getLocalManifest().then((m) => m && setMaxZoom(m.max_zoom));
-    else setMaxZoom(null);
+    if (offlineReady) {
+      getLocalManifest().then((m) => {
+        if (!m) return;
+        setMaxZoom(m.max_zoom);
+        setMinZoom(m.min_zoom);
+      });
+    } else {
+      setMaxZoom(null);
+      setMinZoom(null);
+    }
   }, [offlineReady]);
 
   // Inquadratura iniziale: i bounds del cerchio (esatta e indipendente dallo
@@ -95,10 +104,10 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
         compass={false}
         attribution={false}
       >
-        <Camera
-          initialViewState={{ bounds }}
-          maxZoom={offlineReady ? maxZoom ?? 16 : undefined}
-        />
+        {/* Nessun clamp di zoom: la base online copre z0–17, così zoomando oltre
+            il range delle tile offline compaiono quelle online invece di restare
+            bloccati o vedere overzoom sfocato. */}
+        <Camera initialViewState={{ bounds }} />
 
         {/* Base OTM online (sotto): fallback dove il locale non copre. */}
         <RasterSource id="otm-online" tiles={[ONLINE_URL]} tileSize={256} maxzoom={17}>
@@ -114,9 +123,19 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
             id="otm-offline"
             tiles={[localTileUriTemplate()]}
             tileSize={256}
+            minzoom={minZoom ?? 9}
             maxzoom={maxZoom ?? 16}
           >
-            <Layer id="otm-offline-layer" type="raster" beforeId="zone-fill" />
+            {/* minzoom sulla source: sotto il livello minimo scaricato l'offline
+                non è attiva → traspare la base online (niente tile stirate).
+                maxzoom sul layer = un filo oltre il massimo scaricato: le locali si
+                vedono fino al loro top, oltre lasciano il posto alle online nitide. */}
+            <Layer
+              id="otm-offline-layer"
+              type="raster"
+              beforeId="zone-fill"
+              maxzoom={(maxZoom ?? 16) + 1}
+            />
           </RasterSource>
         )}
 
