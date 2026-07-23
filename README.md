@@ -64,8 +64,7 @@ Stati della MapScreen:
 | File | Ruolo |
 |------|-------|
 | `index.tsx` | splash: se loggato → `/map`, altrimenti → `/login` |
-| `login.tsx` | login + logo consorzio (form in ScrollView per la tastiera) |
-| `register.tsx` | auto-registrazione pubblica (email obbligatoria, data di nascita via date picker, contatti d'emergenza); link "password dimenticata?" alla pagina web |
+| `login.tsx` | login + logo consorzio; "Registrati" e "password dimenticata?" aprono le pagine **web** (la registrazione è solo online). Precompila lo username dal deep-link di ritorno `grappasafe://login?username=…` |
 | `map.tsx` | schermata unica: mappa + overlay + attività + emergenza + share |
 | `settings.tsx` | profilo (con email + data di nascita), vele/device + modale "?" sull'ID OGN, lingua, modalità mappa, frequenza GPS, alert zona, mappa offline, logout |
 | `alarm.tsx` | countdown full-screen su emergenza *pending*, con **sirena a volume massimo** + vibrazione SOS |
@@ -91,10 +90,11 @@ Stati della MapScreen:
 | `store.ts` | AsyncStorage: user, session, cookie, settings, cache area, cache messaggio emergenza |
 | `tiles.ts` | mappa offline: download/gestione tile, manifest, template `file://` per la RasterSource MapLibre |
 | `outbox.ts` | coda offline: pin GPS e SOS non inviati (assenza rete) bufferizzati e ri-spediti al ritorno della rete |
+| `sfx.ts` | suono di conferma ("don-din") su presa in carico e "sto bene"; `expo-audio` dietro require protetto |
 
 ## Flusso utente
 
-1. **Login** o **Registrati** → cookie di sessione salvato.
+1. **Login** → cookie di sessione salvato. La **registrazione è solo web**: "Registrati" apre `/register?from=app` nel browser; a fine flusso una pagina "Torna all'app" fa deep-link `grappasafe://login?username=…` e riporta al login col campo precompilato.
 2. Sulla mappa, **Inizia attività** → modale → `POST /api/session/start` → chip LIVE.
 3. Il task GPS manda `POST /api/gps` a intervallo configurabile (default 15s). La
    traccia compare sulla mappa (dallo stesso endpoint del link condiviso).
@@ -114,13 +114,15 @@ OpenTopoMap: il fetch è controllato e una tantum (la policy OTM vieta il downlo
 massa dai client).
 
 Lato app (Impostazioni → "Scarica mappa offline"): `tiles.ts` scarica il manifest e
-le tile in `FileSystem.documentDirectory/map-tiles/…` e le rende via `<LocalTile>`.
-Dettagli in `OfflineMap.tsx`:
+le tile in `FileSystem.documentDirectory/map-tiles/…` e le rende via una RasterSource
+MapLibre (schema `file://`). Dettagli in `OfflineMap.tsx`:
 - selettore online/offline nei settings (default online);
-- in offline le tile locali stanno **sopra** una base OpenTopoMap online: dove il
-  locale copre vince l'offline, altrove (adiacenti fuori dal cerchio, o sotto lo
-  zoom minimo) traspare l'online — e senza rete resta solo la zona scaricata;
-- zoom-in bloccato al livello massimo scaricato (niente tile oltre = niente vuoto).
+- in offline le tile locali stanno **sopra** una base OpenTopoMap online: dentro il
+  cerchio vince l'offline, fuori traspare l'online — e senza rete resta solo la zona
+  scaricata;
+- **passaggio per zoom**: la source offline ha il suo range reale `[min_zoom, max_zoom]`
+  dal manifest, così sotto il minimo o oltre il massimo scaricato subentrano le tile
+  online nitide invece di overzoom sfocato o zoom bloccato.
 
 Il cerchio monitorato (centro + raggio) arriva da `GET /api/config`, non è hardcodato.
 
@@ -145,7 +147,11 @@ Il cerchio monitorato (centro + raggio) arriva da `GET /api/config`, non è hard
 - **Allarme sonoro**: sull'emergenza *pending* (`alarm.tsx`) parte una **sirena in loop
   a volume massimo** oltre alla vibrazione SOS — forza il volume media su Android e suona
   attraverso il silenzioso su iOS, ripristinando il volume alla chiusura. Il suono è in
-  `assets/alarm.wav` (segnaposto generato, sostituibile con un file dedicato).
+  `assets/alarm.wav` (sirena wail ~6s, segnaposto sostituibile). **Lo stesso `alarm.wav`**
+  è anche il suono della **notifica** d'emergenza (canale Android ad alta priorità), così
+  suona forte anche prima che la schermata si apra.
+- **Conferma sonora** (`lib/sfx.ts`, `assets/confirm.wav`): un breve "don-din" alla
+  **presa in carico** da parte dell'operatore e quando l'utente conferma **"sto bene"**.
 
 ## Resilienza offline (outbox)
 
