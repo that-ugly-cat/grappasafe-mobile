@@ -51,6 +51,12 @@ export default function RootLayout() {
           | { trigger?: string; expires_in?: number }
           | undefined;
 
+        // Apri l'allarme SOLO per le notifiche d'emergenza (hanno un trigger).
+        // Senza questa guardia, toccare la notifica persistente del
+        // foreground-service ("monitoraggio in corso") per riaprire l'app aprirebbe
+        // un falso allarme "situazione anomala" (trigger vuoto → messaggio default).
+        if (!data?.trigger) return;
+
         // Naviga alla schermata allarme passando i dati dalla notifica
         router.push({
           pathname: "/alarm",
