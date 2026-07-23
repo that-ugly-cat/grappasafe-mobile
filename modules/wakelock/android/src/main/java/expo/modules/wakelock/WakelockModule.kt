@@ -15,13 +15,17 @@ class WakelockModule : Module() {
     // Acquisisce un PARTIAL_WAKE_LOCK: la CPU resta sveglia a schermo spento, così
     // l'accelerometro continua a consegnare e il picco d'impatto viene catturato
     // anche col telefono in tasca. Idempotente.
+    // NB: niente `return@Function` — dentro Function{} il blocco è tipizzato Any?,
+    // un return nudo (Unit) darebbe "Return type mismatch". Solo if annidati.
     Function("acquire") {
-      if (wakeLock?.isHeld == true) return@Function
-      val ctx = appContext.reactContext ?: return@Function
-      val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
-      wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "GrappaSafe::Tracking").apply {
-        setReferenceCounted(false)
-        acquire()
+      if (wakeLock?.isHeld != true) {
+        val pm = appContext.reactContext?.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        if (pm != null) {
+          wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "GrappaSafe::Tracking").apply {
+            setReferenceCounted(false)
+            acquire()
+          }
+        }
       }
     }
 
