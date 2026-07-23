@@ -104,10 +104,14 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
         compass={false}
         attribution={false}
       >
-        {/* Nessun clamp di zoom: la base online copre z0–17, così zoomando oltre
-            il range delle tile offline compaiono quelle online invece di restare
-            bloccati o vedere overzoom sfocato. */}
-        <Camera initialViewState={{ bounds }} />
+        {/* In offline si clampa solo il MINIMO al pavimento delle tile scaricate:
+            sotto z9 senza rete sarebbe schermo nero (zoom-out per l'overview → vuoto).
+            Il massimo resta libero, così lo zoom-in raggiunge le online z17 nitide
+            (con rete). Online (offlineReady false) nessun clamp: la base copre tutto. */}
+        <Camera
+          initialViewState={{ bounds }}
+          minZoom={offlineReady ? minZoom ?? 9 : undefined}
+        />
 
         {/* Base OTM online (sotto): fallback dove il locale non copre. */}
         <RasterSource id="otm-online" tiles={[ONLINE_URL]} tileSize={256} maxzoom={17}>
