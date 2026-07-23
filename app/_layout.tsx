@@ -31,12 +31,14 @@ export default function RootLayout() {
   useEffect(() => {
     // Crea il canale Android ad alta priorità (ignorato su iOS)
     if (Platform.OS === "android") {
-      Notifications.setNotificationChannelAsync("emergency", {
+      // id "-v2": le impostazioni di un canale sono immutabili dopo la creazione,
+      // quindi per applicare il suono dedicato serve un canale nuovo.
+      Notifications.setNotificationChannelAsync("emergency-v2", {
         name:             t("notif.channelName"),
         importance:       Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor:       "#e63946",
-        sound:            "default",
+        sound:            "emergency_notif.wav",
         bypassDnd:        true,
       });
     }

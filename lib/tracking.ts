@@ -104,14 +104,16 @@ async function handleGpsResponse(resp: GpsResponse): Promise<void> {
         content: {
           title: t("notif.emergencyTitle"),
           body: t("notif.emergencyBody"),
-          sound: true,
+          sound: "emergency_notif.wav", // iOS; su Android il suono lo dà il canale
           priority: Notifications.AndroidNotificationPriority.MAX,
           data: {
             trigger:    resp.pending_emergency.trigger,
             expires_in: resp.pending_emergency.expires_in,
           },
         },
-        trigger: null, // immediata
+        // Instrada sul canale "emergency-v2" (MAX + bypassDnd + suono dedicato):
+        // senza channelId la notifica finiva sul canale default, spesso muto/basso.
+        trigger: { channelId: "emergency-v2" },
       });
       await AsyncStorage.setItem("pending_notif_id", notifId);
     }
