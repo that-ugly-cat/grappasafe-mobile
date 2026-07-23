@@ -5,6 +5,7 @@ import { Accelerometer } from "expo-sensors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendGps, sendEmergency, GpsPayload, GpsResponse } from "./api";
 import { enqueueGps, flushGps, loadQueuedEmergency, clearQueuedEmergency } from "./outbox";
+import { acquireWakeLock, releaseWakeLock } from "./wakelock";
 import { loadSettings, loadAreaConfig } from "./store";
 import { t } from "./i18n";
 
@@ -222,6 +223,9 @@ export async function startTracking(): Promise<void> {
   });
 
   startAccelerometer();
+  // CPU sveglia a schermo spento: senza, Android sospende l'accelerometro e
+  // l'impatto col telefono in tasca sfugge. Rilasciato in stopTracking.
+  acquireWakeLock();
 }
 
 export async function stopTracking(): Promise<void> {
@@ -237,6 +241,7 @@ export async function stopTracking(): Promise<void> {
     // already gone / registered under a different app instance — ignore
   }
   stopAccelerometer();
+  releaseWakeLock();
 }
 
 export async function triggerEmergency(
