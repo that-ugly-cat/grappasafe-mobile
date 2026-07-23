@@ -25,6 +25,7 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { confirmEmergency, cancelEmergency } from "../lib/api";
 import { getCurrentPosition } from "../lib/tracking";
+import { playConfirm } from "../lib/sfx";
 import { useT } from "../lib/i18n";
 import SafeAlarmSound from "../components/SafeAlarmSound";
 
@@ -115,6 +116,7 @@ export default function AlarmScreen() {
   async function handleCancel() {
     if (resolvedRef.current) return;
     stopAlarm();
+    playConfirm(); // "sto bene": conferma sonora (il player è globale, sopravvive al replace)
     try {
       await cancelEmergency();
     } catch { /* server lo gestisce anche senza risposta */ }

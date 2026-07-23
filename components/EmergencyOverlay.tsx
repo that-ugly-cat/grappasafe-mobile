@@ -6,6 +6,7 @@ import { sendEmergency, emergencyStatus } from "../lib/api";
 import { getCurrentPosition } from "../lib/tracking";
 import { loadEmergencyMessage, saveEmergencyMessage } from "../lib/store";
 import { queueEmergency, loadQueuedEmergency, clearQueuedEmergency } from "../lib/outbox";
+import { playConfirm } from "../lib/sfx";
 import { useT } from "../lib/i18n";
 
 const HOLD_MS = 3000;
@@ -81,6 +82,11 @@ export default function EmergencyOverlay({ onClose, initialSent }: Props) {
       clearInterval(id);
     };
   }, [phase]);
+
+  // Suono di conferma quando un operatore prende in carico l'emergenza.
+  useEffect(() => {
+    if (acknowledged) playConfirm();
+  }, [acknowledged]);
 
   function onPressIn() {
     if (phase !== "arming") return;
