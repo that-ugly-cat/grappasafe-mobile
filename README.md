@@ -91,6 +91,7 @@ Stati della MapScreen:
 | `tiles.ts` | mappa offline: download/gestione tile, manifest, template `file://` per la RasterSource MapLibre |
 | `outbox.ts` | coda offline: pin GPS e SOS non inviati (assenza rete) bufferizzati e ri-spediti al ritorno della rete |
 | `sfx.ts` | suono di conferma ("don-din") su presa in carico e "sto bene"; `expo-audio` dietro require protetto |
+| `wakelock.ts` | wrapper del modulo nativo `modules/wakelock` (partial wake lock): tiene la CPU sveglia a schermo spento durante l'attività → l'accelerometro consegna il picco d'impatto anche col telefono in tasca |
 
 ## Flusso utente
 
@@ -200,7 +201,9 @@ db_state, pending_emergency: {trigger, expires_in} | null }`.
 ## Permessi
 
 - **Android**: `ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE`,
-  `FOREGROUND_SERVICE_LOCATION`, `POST_NOTIFICATIONS` — in `app.json`.
+  `FOREGROUND_SERVICE_LOCATION`, `POST_NOTIFICATIONS`, `WAKE_LOCK` — in `app.json`.
+  Il `WAKE_LOCK` è acquisito durante l'attività (modulo nativo `modules/wakelock`) per
+  tenere l'accelerometro attivo a schermo spento — **costo: batteria** (CPU sveglia).
 - **iOS**: background mode `location` in `infoPlist.UIBackgroundModes` — in `app.json`.
 
 ## Expo Go vs dev build
