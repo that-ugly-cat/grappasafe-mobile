@@ -105,7 +105,10 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
           <Layer id="otm-online-layer" type="raster" />
         </RasterSource>
 
-        {/* Tile locali (sopra): coprono la zona scaricata anche senza rete. */}
+        {/* Tile locali: sopra la base online, ma SOTTO gli overlay. `beforeId`
+            le ancora sotto `zone-fill`: montano dopo il primo render (offlineReady
+            diventa true async), e senza l'ancora MapLibre le metterebbe in cima,
+            coprendo cerchio/traccia/pallino. */}
         {offlineReady && (
           <RasterSource
             id="otm-offline"
@@ -113,7 +116,7 @@ export default function OfflineMap({ area, offlineReady, track, style }: Props) 
             tileSize={256}
             maxzoom={maxZoom ?? 16}
           >
-            <Layer id="otm-offline-layer" type="raster" />
+            <Layer id="otm-offline-layer" type="raster" beforeId="zone-fill" />
           </RasterSource>
         )}
 
