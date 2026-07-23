@@ -104,7 +104,7 @@ async function handleGpsResponse(resp: GpsResponse): Promise<void> {
         content: {
           title: t("notif.emergencyTitle"),
           body: t("notif.emergencyBody"),
-          sound: "emergency_notif.wav", // iOS; su Android il suono lo dà il canale
+          sound: "alarm.wav", // iOS; su Android il suono lo dà il canale
           priority: Notifications.AndroidNotificationPriority.MAX,
           data: {
             trigger:    resp.pending_emergency.trigger,

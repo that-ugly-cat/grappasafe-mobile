@@ -38,7 +38,7 @@ export default function RootLayout() {
         importance:       Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor:       "#e63946",
-        sound:            "emergency_notif.wav",
+        sound:            "alarm.wav",
         bypassDnd:        true,
       });
     }

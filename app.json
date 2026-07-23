@@ -52,7 +52,7 @@
         {
           "icon": "./assets/icon.png",
           "color": "#e63946",
-          "sounds": ["./assets/emergency_notif.wav"]
+          "sounds": ["./assets/alarm.wav"]
         }
       ],
       "expo-router",
