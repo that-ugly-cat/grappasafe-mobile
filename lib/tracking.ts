@@ -21,6 +21,7 @@ let _accelPeak = 1.0; // picco |accel| in g dall'ultimo invio (1g = a riposo)
 let _accelSub: ReturnType<typeof Accelerometer.addListener> | null = null;
 
 export function startAccelerometer() {
+  if (_accelSub) return; // idempotente: non orfanare il listener già attivo
   Accelerometer.setUpdateInterval(100);
   _accelSub = Accelerometer.addListener(({ x, y, z }) => {
     _lastAccel = { x, y, z };
@@ -149,6 +150,21 @@ async function flushQueuedEmergency(): Promise<void> {
 // Il background task viene eseguito da expo-task-manager
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) return;
+
+  // Auto-riparazione. startAccelerometer()/acquireWakeLock() girano solo in
+  // startTracking() (contesto UI). Se Android ricicla il processo durante una
+  // sessione lunga (schermo spento, telefono in tasca — lo scenario bersaglio),
+  // il task riparte in un contesto HEADLESS con lo stato del modulo azzerato
+  // (_accelSub=null, _accelPeak=1.0) e startTracking() NON viene rieseguito.
+  // Senza questo, il listener non verrebbe mai riregistrato: ogni pin partirebbe
+  // con accel_magnitude=1.0 → rilevamento impatto morto mentre il GPS continua a
+  // scorrere (fallimento mascherato). Idempotente: nel caso normale _accelSub è
+  // già valorizzato e questo è un no-op.
+  if (!_accelSub) {
+    startAccelerometer();
+    acquireWakeLock();
+  }
+
   const { locations } = data as { locations: Location.LocationObject[] };
   const loc = locations[locations.length - 1];
   if (!loc) return;
