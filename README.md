@@ -232,3 +232,25 @@ Per tutto questo serve una **dev build EAS**. `bundleIdentifier` / `package` =
   tracce reali di volo/atterraggio.
 - **`battery_pct` sempre `null`**: `expo-battery` non è incluso. Aggiungerlo se il
   livello batteria serve al monitoraggio (device che si spegne = fine tracce).
+
+## Possibili feature future
+
+### Far suonare il telefono dalla dashboard ("locate", find-my-phone)
+Un operatore, dalla dashboard admin, fa **suonare a volume massimo** il telefono di una
+persona monitorata, per **localizzarla a orecchio** sul campo (es. persona svenuta con il
+telefono in tasca).
+
+- **Canale**: nessuna infrastruttura nuova — passa per il **polling già esistente**. Il
+  server setta un flag `locate` per la sessione, lo include nella risposta a `/api/gps`
+  (o `/api/emergency/status`), l'app reagisce e un endpoint lo **spegne**.
+- **Reazione app**: riusa la sirena (`assets/alarm.wav`) e la plumbing di `SafeAlarmSound`
+  (volume forzato, loop, silenzioso bypassato) + vibrazione, con schermo "un soccorritore
+  ti sta cercando · silenzia". L'operatore mantiene il **clear** finché non trovata.
+- **Vincolo chiave**: funziona solo se l'**app è viva** — cioè durante un'**attività attiva**
+  (il foreground service tiene vivo il polling). Nello scenario di soccorso in genere è così
+  (la sessione era attiva). Con **app chiusa / nessuna sessione** servirebbe un **push remoto
+  (FCM)** per risvegliarla — infrastruttura più grossa, da valutare a parte.
+- **Da validare**: audio in **loop dal contesto background/poll** (fallback robusto: notifiche
+  sonore ripetute col canale); **latenza** fino a ~15s (accelerabile mentre `locate` è attivo).
+- **Extra**: bottone **silenzia** lato utente (persona cosciente), **audit** di chi attiva il
+  locate, e **batteria %** in dashboard (telefono scarico = inutile far suonare).
