@@ -7,8 +7,10 @@ import {
 import { router } from "expo-router";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   isIgnoringBatteryOptimizations, requestIgnoreBatteryOptimizations,
+  getWakelockDiagnostics, WakelockDiagnostics,
 } from "../lib/wakelock";
 import {
   loadSettings, saveSettings, Settings, DEFAULT_SETTINGS, saveUser,
@@ -56,6 +58,8 @@ export default function SettingsScreen() {
   const [permLoc, setPermLoc] = useState<boolean | null>(null);
   const [permNotif, setPermNotif] = useState<boolean | null>(null);
   const [permBattery, setPermBattery] = useState<boolean | null>(null);
+  const [diag, setDiag] = useState<WakelockDiagnostics | null>(null);
+  const [lastTickAgeS, setLastTickAgeS] = useState<number | null>(null);
 
   useEffect(() => {
     loadSettings().then(setSettings);
@@ -90,6 +94,15 @@ export default function SettingsScreen() {
       setPermNotif(null);
     }
     setPermBattery(Platform.OS === "android" ? isIgnoringBatteryOptimizations() : true);
+    // Diagnostica tracking: stato nativo di wake lock/sensore + età dell'ultimo
+    // giro del task GPS. Significativa solo con una sessione attiva.
+    setDiag(getWakelockDiagnostics());
+    try {
+      const raw = await AsyncStorage.getItem("gs_last_tick");
+      setLastTickAgeS(raw ? Math.round((Date.now() - Number(raw)) / 1000) : null);
+    } catch {
+      setLastTickAgeS(null);
+    }
   }
 
   // Stati aggiornati all'apertura del modale e al rientro dalle impostazioni
@@ -428,6 +441,28 @@ export default function SettingsScreen() {
               <Text style={s.permVendor}>{t("settings.permsVendorNote")}</Text>
             )}
 
+            {/* Diagnostica live (solo se il build la espone). Utile durante una
+                sessione: dopo un periodo a schermo spento, riaprire qui e
+                leggere se wake lock/sensore/task sono rimasti vivi. */}
+            {diag && (
+              <View style={s.diagBox}>
+                <Text style={s.diagTitle}>{t("settings.diagTitle")}</Text>
+                <Text style={s.diagLine}>
+                  {diag.wakeLockHeld ? "✓" : "✗"} {t("settings.diagWakeLock")}
+                  {"   "}
+                  {diag.accelActive ? "✓" : "✗"} {t("settings.diagAccel")}
+                </Text>
+                <Text style={s.diagLine}>
+                  {diag.lastAccelEventAgeMs < 0
+                    ? t("settings.diagAccelNever")
+                    : t("settings.diagAccelLast", { s: Math.round(diag.lastAccelEventAgeMs / 1000) })}
+                  {lastTickAgeS != null
+                    ? " · " + t("settings.diagLastTick", { s: lastTickAgeS })
+                    : ""}
+                </Text>
+              </View>
+            )}
+
             <TouchableOpacity style={s.modalClose} onPress={() => setShowPerms(false)}>
               <Text style={s.modalCloseText}>OK</Text>
             </TouchableOpacity>
@@ -554,6 +589,12 @@ const s = StyleSheet.create({
   permUnknown: { color: "#888" },
   permTitle: { color: "#eee", fontSize: 15, fontWeight: "600" },
   permFixBtn: { marginTop: 6, alignSelf: "flex-start", paddingVertical: 2 },
+  diagBox: {
+    marginTop: 16, backgroundColor: "#161628", borderRadius: 8, padding: 10,
+    borderWidth: 1, borderColor: "#2a2a44",
+  },
+  diagTitle: { color: "#888", fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  diagLine: { color: "#aaa", fontSize: 12, marginTop: 5, fontVariant: ["tabular-nums"] },
   permVendor: {
     color: "#f0a500", fontSize: 12, lineHeight: 17, marginTop: 16,
     backgroundColor: "rgba(240,165,0,0.08)", borderRadius: 8, padding: 10,

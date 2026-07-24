@@ -18,6 +18,7 @@ class WakelockModule : Module() {
   private var sensorManager: SensorManager? = null
   private var accelListener: SensorEventListener? = null
   @Volatile private var peakG: Double = 1.0
+  @Volatile private var lastAccelEventMs: Long = 0L
 
   override fun definition() = ModuleDefinition {
     // Nome usato da JS: requireNativeModule("WakeLock").
@@ -83,6 +84,7 @@ class WakelockModule : Module() {
                 // Modulo in g (1.0 = a riposo), come si aspetta il server.
                 val g = sqrt(x * x + y * y + z * z) / SensorManager.GRAVITY_EARTH
                 if (g > peakG) peakG = g
+                lastAccelEventMs = System.currentTimeMillis()
               }
               override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
             }
@@ -107,6 +109,19 @@ class WakelockModule : Module() {
       val p = peakG
       peakG = 1.0
       p
+    }
+
+    // Stato reale del pipeline nativo, per la diagnostica nel modale permessi:
+    // dice se il wake lock è davvero tenuto (o l'OEM l'ha revocato / mai
+    // acquisito) e da quanto il sensore non consegna eventi — il modo più
+    // rapido per capire dove muore il tracking a schermo spento.
+    Function("getDiagnostics") {
+      mapOf(
+        "wakeLockHeld" to (wakeLock?.isHeld == true),
+        "accelActive" to (accelListener != null),
+        "lastAccelEventAgeMs" to
+          (if (lastAccelEventMs == 0L) -1L else System.currentTimeMillis() - lastAccelEventMs)
+      )
     }
 
     // Apre il dialog di sistema "consenti esecuzione in background" per l'app.

@@ -14,7 +14,15 @@ let native: {
   startAccel?: () => void;
   stopAccel?: () => void;
   getAndResetPeak?: () => number;
+  getDiagnostics?: () => WakelockDiagnostics;
 } | null = null;
+
+export interface WakelockDiagnostics {
+  wakeLockHeld: boolean;
+  accelActive: boolean;
+  /** ms dall'ultimo evento del sensore; -1 = mai visto un evento. */
+  lastAccelEventAgeMs: number;
+}
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { requireNativeModule } = require("expo-modules-core");
@@ -93,5 +101,14 @@ export function getAndResetNativePeak(): number {
     return native?.getAndResetPeak?.() ?? 1.0;
   } catch {
     return 1.0;
+  }
+}
+
+/** Stato reale di wake lock e sensore (null se il build non li espone). */
+export function getWakelockDiagnostics(): WakelockDiagnostics | null {
+  try {
+    return native?.getDiagnostics?.() ?? null;
+  } catch {
+    return null;
   }
 }

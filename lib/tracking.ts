@@ -208,18 +208,22 @@ TaskManager.defineTask(LOCATION_TASK, ({ data, error }) => {
 async function handleLocationUpdate(data: unknown, error: unknown): Promise<void> {
   if (error) return;
 
-  // Auto-riparazione. startAccelerometer()/acquireWakeLock() girano solo in
-  // startTracking() (contesto UI). Se Android ricicla il processo durante una
-  // sessione lunga (schermo spento, telefono in tasca — lo scenario bersaglio),
-  // il task riparte in un contesto HEADLESS con lo stato del modulo azzerato
+  // Auto-riparazione. startAccelerometer() gira solo in startTracking()
+  // (contesto UI). Se Android ricicla il processo durante una sessione lunga
+  // (schermo spento, telefono in tasca — lo scenario bersaglio), il task
+  // riparte in un contesto HEADLESS con lo stato del modulo azzerato
   // (_accelStarted=false) e startTracking() NON viene rieseguito. Senza questo,
   // il listener non verrebbe mai riregistrato: ogni pin partirebbe con
   // accel_magnitude=1.0 → rilevamento impatto morto mentre il GPS continua a
   // scorrere (fallimento mascherato). Idempotente: nel caso normale è un no-op.
-  if (!_accelStarted) {
-    startAccelerometer();
-    acquireWakeLock();
-  }
+  if (!_accelStarted) startAccelerometer();
+  // Il wake lock si ri-acquisisce a OGNI giro, non solo al ripristino: alcuni
+  // OEM revocano i lock di lunga durata — così torna su al primo punto GPS.
+  acquireWakeLock();
+
+  // Heartbeat per la diagnostica: quando è girato l'ultimo task. Se a schermo
+  // spento questo timestamp invecchia, la CPU sta dormendo (wake lock inerte).
+  AsyncStorage.setItem("gs_last_tick", String(Date.now())).catch(() => {});
 
   // TUTTE le posizioni del batch, non solo l'ultima. In Doze/risparmio energia
   // Android consegna gli update in batch (anche hardware-batched): tenere solo
