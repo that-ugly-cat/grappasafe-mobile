@@ -12,6 +12,7 @@ import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.media.AudioManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Handler
@@ -63,6 +64,8 @@ class WakelockModule : Module() {
   @Volatile private var notifBody = ""
   @Volatile private var lastSentTs: Long = 0L
   @Volatile private var lastResponse = ""
+  // Volume sveglia precedente, da ripristinare quando il pending rientra.
+  private var prevAlarmVolume: Int = -1
 
   companion object {
     private const val QUEUE_CAP = 1000       // ~4h a 15s: oltre, si scarta il più vecchio
@@ -420,6 +423,18 @@ class WakelockModule : Module() {
   private fun postEmergencyNotification() {
     val ctx = appContext.reactContext?.applicationContext ?: return
     val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+    // Volume sveglia al MASSIMO: il canale suona sullo stream alarm ma al
+    // volume corrente dell'utente — un allarme di sicurezza non può suonare
+    // piano. Il volume precedente si ripristina quando il pending rientra.
+    try {
+      val am = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+      if (am != null) {
+        if (prevAlarmVolume < 0) prevAlarmVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
+      }
+    } catch (_: Throwable) {
+      // volume non forzabile (es. DnD con restrizioni): si suona comunque
+    }
     val launch = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName) ?: return
     val pi = PendingIntent.getActivity(
       ctx, 0, launch,
@@ -448,5 +463,13 @@ class WakelockModule : Module() {
     val ctx = appContext.reactContext?.applicationContext ?: return
     val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
     nm.cancel(EMERGENCY_NOTIF_ID)
+    // Ripristina il volume sveglia dell'utente.
+    if (prevAlarmVolume >= 0) {
+      try {
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        am?.setStreamVolume(AudioManager.STREAM_ALARM, prevAlarmVolume, 0)
+      } catch (_: Throwable) {}
+      prevAlarmVolume = -1
+    }
   }
 }

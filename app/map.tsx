@@ -81,6 +81,28 @@ export default function MapScreen() {
     return () => clearInterval(id);
   }, []);
 
+  // Emergenza APERTA dal server durante la sessione (es. pending auto-
+  // confermato mentre lo schermo era spento: allo sblocco non c'è più nulla da
+  // confermare, c'è un'emergenza in corso). Prima veniva controllata solo al
+  // mount: l'overlay rosso compariva solo riavviando l'app. Poll ogni 10s.
+  useEffect(() => {
+    if (!session || showEmergency) return;
+    let alive = true;
+    async function check() {
+      const st = await emergencyStatus();
+      if (alive && st?.active) {
+        setEmergencyInitialSent(true);
+        setShowEmergency(true);
+      }
+    }
+    check();
+    const id = setInterval(check, 10_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [session, showEmergency]);
+
   // Pending auto-emergenza dal server (durante una sessione) → schermata alarm.
   useEffect(() => {
     if (!session) return;
