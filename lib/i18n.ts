@@ -281,6 +281,8 @@ const it: Table = {
   "settings.diagAccelNever": "Accelerometro: nessun evento",
   "settings.diagAccelLast": "Accelerometro: ultimo evento {s}s fa",
   "settings.diagLastTick": "ultimo giro GPS {s}s fa",
+  "settings.diagSender": "Invio nativo attivo",
+  "settings.diagLastSent": "ultimo invio {s}s fa",
 
   // navigation
   "nav.register": "Registrati",
@@ -464,6 +466,8 @@ const en: Table = {
   "settings.diagAccelNever": "Accelerometer: no events",
   "settings.diagAccelLast": "Accelerometer: last event {s}s ago",
   "settings.diagLastTick": "last GPS cycle {s}s ago",
+  "settings.diagSender": "Native sender active",
+  "settings.diagLastSent": "last send {s}s ago",
 
   "nav.register": "Sign up",
   "nav.settings": "Settings",
@@ -646,6 +650,8 @@ const de: Table = {
   "settings.diagAccelNever": "Beschleunigungssensor: keine Ereignisse",
   "settings.diagAccelLast": "Beschleunigungssensor: letztes Ereignis vor {s}s",
   "settings.diagLastTick": "letzter GPS-Zyklus vor {s}s",
+  "settings.diagSender": "Nativer Sender aktiv",
+  "settings.diagLastSent": "letzter Versand vor {s}s",
 
   "nav.register": "Registrieren",
   "nav.settings": "Einstellungen",
@@ -828,6 +834,8 @@ const fr: Table = {
   "settings.diagAccelNever": "Accéléromètre : aucun événement",
   "settings.diagAccelLast": "Accéléromètre : dernier événement il y a {s}s",
   "settings.diagLastTick": "dernier cycle GPS il y a {s}s",
+  "settings.diagSender": "Envoi natif actif",
+  "settings.diagLastSent": "dernier envoi il y a {s}s",
 
   "nav.register": "S'inscrire",
   "nav.settings": "Réglages",
@@ -1010,6 +1018,8 @@ const es: Table = {
   "settings.diagAccelNever": "Acelerómetro: sin eventos",
   "settings.diagAccelLast": "Acelerómetro: último evento hace {s}s",
   "settings.diagLastTick": "último ciclo GPS hace {s}s",
+  "settings.diagSender": "Envío nativo activo",
+  "settings.diagLastSent": "último envío hace {s}s",
 
   "nav.register": "Registrarse",
   "nav.settings": "Ajustes",
@@ -1192,6 +1202,8 @@ const nl: Table = {
   "settings.diagAccelNever": "Versnellingsmeter: geen events",
   "settings.diagAccelLast": "Versnellingsmeter: laatste event {s}s geleden",
   "settings.diagLastTick": "laatste gps-cyclus {s}s geleden",
+  "settings.diagSender": "Native verzending actief",
+  "settings.diagLastSent": "laatste verzending {s}s geleden",
 
   "nav.register": "Registreren",
   "nav.settings": "Instellingen",
@@ -1374,6 +1386,8 @@ const pl: Table = {
   "settings.diagAccelNever": "Akcelerometr: brak zdarzeń",
   "settings.diagAccelLast": "Akcelerometr: ostatnie zdarzenie {s}s temu",
   "settings.diagLastTick": "ostatni cykl GPS {s}s temu",
+  "settings.diagSender": "Natywne wysyłanie aktywne",
+  "settings.diagLastSent": "ostatnia wysyłka {s}s temu",
 
   "nav.register": "Zarejestruj się",
   "nav.settings": "Ustawienia",
@@ -1556,6 +1570,8 @@ const cs: Table = {
   "settings.diagAccelNever": "Akcelerometr: žádné události",
   "settings.diagAccelLast": "Akcelerometr: poslední událost před {s}s",
   "settings.diagLastTick": "poslední cyklus GPS před {s}s",
+  "settings.diagSender": "Nativní odesílání aktivní",
+  "settings.diagLastSent": "poslední odeslání před {s}s",
 
   "nav.register": "Zaregistrovat se",
   "nav.settings": "Nastavení",

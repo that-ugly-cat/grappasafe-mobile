@@ -15,6 +15,13 @@ let native: {
   stopAccel?: () => void;
   getAndResetPeak?: () => number;
   getDiagnostics?: () => WakelockDiagnostics;
+  startSender?: (
+    url: string, cookie: string, intervalMs: number,
+    attivita: string, notifTitle: string, notifBody: string,
+  ) => void;
+  stopSender?: () => void;
+  isSenderRunning?: () => boolean;
+  getLastResponse?: () => string;
 } | null = null;
 
 export interface WakelockDiagnostics {
@@ -22,6 +29,10 @@ export interface WakelockDiagnostics {
   accelActive: boolean;
   /** ms dall'ultimo evento del sensore; -1 = mai visto un evento. */
   lastAccelEventAgeMs: number;
+  /** true se il sender nativo sta girando (build recenti). */
+  senderRunning?: boolean;
+  /** ms dall'ultimo invio riuscito del sender; -1 = mai. */
+  lastSentAgeMs?: number;
 }
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -110,5 +121,57 @@ export function getWakelockDiagnostics(): WakelockDiagnostics | null {
     return native?.getDiagnostics?.() ?? null;
   } catch {
     return null;
+  }
+}
+
+// Sender nativo: il trasporto GPS→server a schermo spento. La consegna delle
+// posizioni al task JS passa da JobScheduler, che Android congela a schermo
+// spento (i job si scaricano in raffica allo sblocco): nessun invio real-time
+// può vivere in JS. Il loop nativo, col wake lock, sì.
+
+export function hasNativeSender(): boolean {
+  return typeof native?.startSender === "function";
+}
+
+export function startNativeSender(opts: {
+  url: string;
+  cookie: string;
+  intervalMs: number;
+  attivita: string;
+  notifTitle: string;
+  notifBody: string;
+}): void {
+  try {
+    native?.startSender?.(
+      opts.url, opts.cookie, opts.intervalMs,
+      opts.attivita, opts.notifTitle, opts.notifBody,
+    );
+  } catch {
+    /* modulo assente: il task JS resta l'unico trasporto */
+  }
+}
+
+export function stopNativeSender(): void {
+  try {
+    native?.stopSender?.();
+  } catch {
+    /* idem */
+  }
+}
+
+export function isNativeSenderRunning(): boolean {
+  try {
+    return native?.isSenderRunning?.() ?? false;
+  } catch {
+    return false;
+  }
+}
+
+/** Ultima risposta JSON di /api/gps vista dal sender ("" se nessuna). */
+export function getNativeLastResponse(): string {
+  try {
+    return native?.getLastResponse?.() ?? "";
+  } catch {
+    return "";
   }
 }

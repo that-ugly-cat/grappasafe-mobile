@@ -460,6 +460,14 @@ export default function SettingsScreen() {
                     ? " · " + t("settings.diagLastTick", { s: lastTickAgeS })
                     : ""}
                 </Text>
+                {diag.senderRunning !== undefined && (
+                  <Text style={s.diagLine}>
+                    {diag.senderRunning ? "✓" : "✗"} {t("settings.diagSender")}
+                    {diag.senderRunning && diag.lastSentAgeMs != null && diag.lastSentAgeMs >= 0
+                      ? " · " + t("settings.diagLastSent", { s: Math.round(diag.lastSentAgeMs / 1000) })
+                      : ""}
+                  </Text>
+                )}
               </View>
             )}
 

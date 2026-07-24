@@ -3,7 +3,7 @@ import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
 import { Accelerometer } from "expo-sensors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { sendGps, sendEmergency, GpsPayload, GpsResponse } from "./api";
+import { sendGps, sendEmergency, GpsPayload, GpsResponse, API_BASE } from "./api";
 import {
   enqueueGps, flushGps, loadQueuedEmergency, clearQueuedEmergency,
   markEmergencyFailed, clearEmergencyFailed,
@@ -11,6 +11,8 @@ import {
 import {
   acquireWakeLock, releaseWakeLock,
   hasNativeAccel, startNativeAccel, stopNativeAccel, getAndResetNativePeak,
+  hasNativeSender, startNativeSender, stopNativeSender, isNativeSenderRunning,
+  getNativeLastResponse,
 } from "./wakelock";
 import { loadSettings, loadAreaConfig, loadSession } from "./store";
 import { t } from "./i18n";
@@ -167,6 +169,27 @@ async function handleGpsResponse(resp: GpsResponse): Promise<void> {
   }
 }
 
+// Variante di handleGpsResponse per le risposte viste dal SENDER NATIVO: la
+// notifica di pre-emergenza l'ha già postata (o ritirata) il nativo, qui si
+// allinea solo lo stato locale che alimenta la schermata /alarm (il poll della
+// mappa legge pending_emergency da AsyncStorage).
+async function handleNativeResponse(resp: GpsResponse): Promise<void> {
+  if (resp.pending_emergency) {
+    await AsyncStorage.setItem(
+      "pending_emergency",
+      JSON.stringify(resp.pending_emergency)
+    );
+  } else if (resp.pending_emergency === null) {
+    await AsyncStorage.removeItem("pending_emergency");
+    // Un'eventuale notifica JS residua (posti misti vecchio/nuovo build):
+    const notifId = await AsyncStorage.getItem("pending_notif_id");
+    if (notifId) {
+      await Notifications.dismissNotificationAsync(notifId).catch(() => {});
+      await AsyncStorage.removeItem("pending_notif_id");
+    }
+  }
+}
+
 // Ritenta un SOS manuale rimasto in coda (assenza di rete al momento del tap).
 // Safety-first: si riprova a ogni tick finché il server lo prende.
 async function flushQueuedEmergency(): Promise<void> {
@@ -233,6 +256,27 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
   if (!locations?.length) return;
   const points = [...locations].sort((a, b) => a.timestamp - b.timestamp);
 
+  const newest = points[points.length - 1];
+
+  // Geofence locale sul punto più recente — indipendente dall'esito della rete.
+  await checkGeofence(newest.coords.latitude, newest.coords.longitude).catch(() => {});
+
+  // Col SENDER NATIVO attivo, il trasporto non passa di qui: questo task (che
+  // Android congela a schermo spento e sveglia in raffica allo sblocco) fa solo
+  // il lavoro di contorno — geofence (sopra), drenaggio della coda legacy,
+  // retry del SOS, allineamento dello stato pending dalla risposta nativa.
+  // Inviare anche da qui creerebbe punti duplicati sul server. NB: questo
+  // return sta PRIMA di takeAccelPeak(): il picco lo consuma solo il sender.
+  if (isNativeSenderRunning()) {
+    try { await flushGps(sendGps, handleGpsResponse); } catch {}
+    try { await flushQueuedEmergency(); } catch {}
+    try {
+      const raw = getNativeLastResponse();
+      if (raw) await handleNativeResponse(JSON.parse(raw) as GpsResponse);
+    } catch {}
+    return;
+  }
+
   // Il picco d'accelerazione copre la finestra dall'ultimo invio: va sul punto
   // più RECENTE del batch; per i punti arretrati non abbiamo il dettaglio
   // per-punto, quindi 1.0 (riposo) — meglio nessun falso impatto retrodatato.
@@ -255,10 +299,6 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
       ts: new Date(loc.timestamp).toISOString(),
     };
   });
-  const newest = points[points.length - 1];
-
-  // Geofence locale sul punto più recente — indipendente dall'esito della rete.
-  await checkGeofence(newest.coords.latitude, newest.coords.longitude).catch(() => {});
 
   // Ogni passo è isolato nel proprio try: prima erano in un unico blocco, e un
   // errore nello svuotamento della coda (passo 1) saltava anche l'invio del
@@ -329,6 +369,22 @@ export async function startTracking(): Promise<void> {
   // CPU sveglia a schermo spento: senza, Android sospende l'accelerometro e
   // l'impatto col telefono in tasca sfugge. Rilasciato in stopTracking.
   acquireWakeLock();
+
+  // Trasporto nativo: l'unico vivo a schermo spento (la consegna al task JS
+  // passa da JobScheduler, congelato a schermo spento). Il task JS smette di
+  // inviare finché il sender gira (vedi handleLocationUpdate).
+  if (hasNativeSender()) {
+    const cookie = (await AsyncStorage.getItem("session_cookie")) ?? "";
+    const attivita = (await loadSession())?.attivita ?? "";
+    startNativeSender({
+      url: `${API_BASE}/api/gps`,
+      cookie,
+      intervalMs: settings.gpsIntervalMs ?? GPS_INTERVAL_FALLBACK_MS,
+      attivita,
+      notifTitle: t("notif.emergencyTitle"),
+      notifBody: t("notif.emergencyBody"),
+    });
+  }
 }
 
 export async function stopTracking(): Promise<void> {
@@ -343,6 +399,7 @@ export async function stopTracking(): Promise<void> {
   } catch {
     // already gone / registered under a different app instance — ignore
   }
+  stopNativeSender();
   stopAccelerometer();
   releaseWakeLock();
 }
