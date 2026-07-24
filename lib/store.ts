@@ -6,6 +6,7 @@ const KEYS = {
   SESSION: "gs_session",
   SETTINGS: "gs_settings",
   AREA: "gs_area",
+  PAUSED: "gs_paused",
 };
 
 export interface Settings {
@@ -101,4 +102,17 @@ export async function loadSession(): Promise<StoredSession | null> {
 
 export async function clearSession() {
   await AsyncStorage.removeItem(KEYS.SESSION);
+  await AsyncStorage.removeItem(KEYS.PAUSED);
+}
+
+// Stato "tracking in pausa". Il task di localizzazione (e la sessione) vivono
+// oltre un riavvio dell'app, ma lo stato React no: senza persistenza, dopo un
+// riavvio in pausa la UI mostrerebbe "live" con il GPS fermo.
+export async function savePaused(paused: boolean) {
+  if (paused) await AsyncStorage.setItem(KEYS.PAUSED, "1");
+  else await AsyncStorage.removeItem(KEYS.PAUSED);
+}
+
+export async function loadPaused(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEYS.PAUSED)) === "1";
 }

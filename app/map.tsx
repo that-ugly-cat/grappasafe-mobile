@@ -11,7 +11,7 @@ import {
 } from "../lib/api";
 import {
   loadAreaConfig, saveAreaConfig, loadSettings, loadSession, clearSession,
-  StoredSession,
+  loadPaused, savePaused, StoredSession,
 } from "../lib/store";
 import { startTracking, stopTracking } from "../lib/tracking";
 import { isMapDownloaded } from "../lib/tiles";
@@ -46,6 +46,7 @@ export default function MapScreen() {
       }
     });
     loadSession().then(setSession);
+    loadPaused().then(setPaused);
     getMe().then((me) => me && setShareToken(me.share_token));
     emergencyStatus().then((st) => {
       if (st?.active) {
@@ -133,6 +134,7 @@ export default function MapScreen() {
   function onActivityStarted(_a: Attivita) {
     setShowActivity(false);
     setPaused(false);
+    savePaused(false);
     loadSession().then(setSession);
   }
 
@@ -166,9 +168,11 @@ export default function MapScreen() {
       if (paused) {
         await startTracking();
         setPaused(false);
+        await savePaused(false);
       } else {
         await stopTracking();
         setPaused(true);
+        await savePaused(true);
       }
     } catch {
       Alert.alert(t("common.error"), t("map.cannotToggle"));
