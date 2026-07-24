@@ -3,9 +3,9 @@ import {
   Modal, View, Text, TouchableOpacity, ScrollView,
   StyleSheet, Alert, ActivityIndicator,
 } from "react-native";
-import { startSession, Attivita } from "../lib/api";
-import { saveSession } from "../lib/store";
-import { startTracking } from "../lib/tracking";
+import { startSession, endSession, Attivita } from "../lib/api";
+import { saveSession, clearSession } from "../lib/store";
+import { startTracking, requestPermissions } from "../lib/tracking";
 import { useT } from "../lib/i18n";
 
 const ACTIVITIES: Attivita[] = [
@@ -26,6 +26,13 @@ export default function ActivityModal({ visible, onClose, onStarted }: Props) {
   async function pick(a: Attivita) {
     setLoading(a);
     try {
+      // Permessi PRIMA di aprire la sessione server: se l'utente li nega,
+      // nessuna sessione orfana da ripulire e un messaggio specifico.
+      const granted = await requestPermissions();
+      if (!granted) {
+        Alert.alert(t("common.warning"), t("activity.needBgPermission"));
+        return;
+      }
       const { session_id, state } = await startSession(a);
       await saveSession({
         session_id,
@@ -33,9 +40,17 @@ export default function ActivityModal({ visible, onClose, onStarted }: Props) {
         attivita: a,
         started_at: new Date().toISOString(),
       });
-      await startTracking();
+      try {
+        await startTracking();
+      } catch (e) {
+        // Rollback: senza tracking la sessione sarebbe un "live" fantasma
+        // (server in ascolto, nessun pin in arrivo).
+        await endSession().catch(() => {});
+        await clearSession();
+        throw e;
+      }
       onStarted(a);
-    } catch (e: any) {
+    } catch {
       Alert.alert(t("common.error"), t("activity.cannotStart"));
     } finally {
       setLoading(null);
