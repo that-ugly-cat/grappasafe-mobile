@@ -194,29 +194,40 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
     acquireWakeLock();
   }
 
+  // TUTTE le posizioni del batch, non solo l'ultima. In Doze/risparmio energia
+  // Android consegna gli update in batch (anche hardware-batched): tenere solo
+  // l'ultima buttava via i punti intermedi — la traccia sul server aveva buchi
+  // esattamente nei periodi a schermo spento.
   const { locations } = data as { locations: Location.LocationObject[] };
-  const loc = locations[locations.length - 1];
-  if (!loc) return;
+  if (!locations?.length) return;
+  const points = [...locations].sort((a, b) => a.timestamp - b.timestamp);
 
-  const { latitude: lat, longitude: lon, altitude, speed } = loc.coords;
-  const alt_m = altitude ?? null;
-  const speed_ms = speed != null && speed >= 0 ? speed : null;
-
-  const payload: GpsPayload = {
-    lat,
-    lon,
-    alt_m,
-    speed_ms,
-    motion_state: motionState(speed_ms, alt_m),
-    impact_detected: false, // l'impatto lo decide il server dal picco
-    accel_magnitude: _accelPeak,
-    battery_pct: null, // expo-battery opzionale, non incluso di default
-    ts: new Date(loc.timestamp).toISOString(),
-  };
+  // Il picco d'accelerazione copre la finestra dall'ultimo invio: va sul punto
+  // più RECENTE del batch; per i punti arretrati non abbiamo il dettaglio
+  // per-punto, quindi 1.0 (riposo) — meglio nessun falso impatto retrodatato.
+  const peak = _accelPeak;
   _accelPeak = 1.0; // apri una nuova finestra di picco per il prossimo invio
 
-  // Geofence locale — indipendente dall'esito della rete.
-  await checkGeofence(lat, lon).catch(() => {});
+  const payloads: GpsPayload[] = points.map((loc, i) => {
+    const { latitude: lat, longitude: lon, altitude, speed } = loc.coords;
+    const alt_m = altitude ?? null;
+    const speed_ms = speed != null && speed >= 0 ? speed : null;
+    return {
+      lat,
+      lon,
+      alt_m,
+      speed_ms,
+      motion_state: motionState(speed_ms, alt_m),
+      impact_detected: false, // l'impatto lo decide il server dal picco
+      accel_magnitude: i === points.length - 1 ? peak : 1.0,
+      battery_pct: null, // expo-battery opzionale, non incluso di default
+      ts: new Date(loc.timestamp).toISOString(),
+    };
+  });
+  const newest = points[points.length - 1];
+
+  // Geofence locale sul punto più recente — indipendente dall'esito della rete.
+  await checkGeofence(newest.coords.latitude, newest.coords.longitude).catch(() => {});
 
   // Ogni passo è isolato nel proprio try: prima erano in un unico blocco, e un
   // errore nello svuotamento della coda (passo 1) saltava anche l'invio del
@@ -228,17 +239,21 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
   try { await flushGps(sendGps, handleGpsResponse); } catch {}
   try { await flushQueuedEmergency(); } catch {}
 
-  // 2. Invia il punto corrente (sendGps non lancia mai: esiti tipizzati).
+  // 2. Invia i punti del batch in ordine (sendGps non lancia mai: esiti
+  //    tipizzati). Al primo errore di rete, questo e tutti i successivi vanno
+  //    in coda (l'ordine dei ts resta monotono).
   try {
-    const res = await sendGps(payload);
-    if (res.kind === "network") {
-      await enqueueGps(payload); // niente rete: in coda, non perso
-      return;
+    for (let i = 0; i < payloads.length; i++) {
+      const res = await sendGps(payloads[i]);
+      if (res.kind === "network") {
+        for (const p of payloads.slice(i)) await enqueueGps(p);
+        return;
+      }
+      if (res.kind === "rejected") continue; // server raggiungibile ma rifiuta → scarta
+      // Il punto è già consegnato: un errore nella gestione della risposta non
+      // deve rimetterlo in coda (duplicato) né far cadere il giro.
+      try { await handleGpsResponse(res.response); } catch {}
     }
-    if (res.kind === "rejected") return; // server raggiungibile ma rifiuta → scarta
-    // Il punto è già consegnato: un errore nella gestione della risposta non
-    // deve rimetterlo in coda (duplicato) né far cadere il giro.
-    try { await handleGpsResponse(res.response); } catch {}
   } catch {
     // silenzioso — prossimo ciclo riprova
   }
@@ -265,6 +280,11 @@ export async function startTracking(): Promise<void> {
     // sopprimerebbe gli update quando il soggetto è immobile — proprio quando
     // servono di più (rilevamento immobilità + picco d'impatto viaggiano col GPS).
     distanceInterval: 0,
+    // Nessun batching di consegna: senza questi espliciti a 0, il Fused
+    // Location Provider può accumulare update e consegnarli in blocco (specie
+    // in risparmio energia) — il monitoraggio live vuole un punto per volta.
+    deferredUpdatesInterval: 0,
+    deferredUpdatesDistance: 0,
     foregroundService: {
       notificationTitle: t("notif.trackingTitle"),
       notificationBody: t("notif.trackingBody"),
