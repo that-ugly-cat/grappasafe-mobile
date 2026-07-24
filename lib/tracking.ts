@@ -243,6 +243,13 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
   // Il wake lock si ri-acquisisce a OGNI giro, non solo al ripristino: alcuni
   // OEM revocano i lock di lunga durata — così torna su al primo punto GPS.
   acquireWakeLock();
+  // Anche il SENDER rientra nell'auto-riparazione: senza questo, dopo un
+  // riciclo del processo (o con una sessione più vecchia dell'install) il task
+  // ripristinava accel+wakelock ma il trasporto restava morto — diagnostica
+  // ✓✓✗ e nessun invio a schermo spento.
+  if (hasNativeSender() && !isNativeSenderRunning()) {
+    await startSenderFromStoredState().catch(() => {});
+  }
 
   // Heartbeat per la diagnostica: quando è girato l'ultimo task. Se a schermo
   // spento questo timestamp invecchia, la CPU sta dormendo (wake lock inerte).
@@ -373,18 +380,26 @@ export async function startTracking(): Promise<void> {
   // Trasporto nativo: l'unico vivo a schermo spento (la consegna al task JS
   // passa da JobScheduler, congelato a schermo spento). Il task JS smette di
   // inviare finché il sender gira (vedi handleLocationUpdate).
-  if (hasNativeSender()) {
-    const cookie = (await AsyncStorage.getItem("session_cookie")) ?? "";
-    const attivita = (await loadSession())?.attivita ?? "";
-    startNativeSender({
-      url: `${API_BASE}/api/gps`,
-      cookie,
-      intervalMs: settings.gpsIntervalMs ?? GPS_INTERVAL_FALLBACK_MS,
-      attivita,
-      notifTitle: t("notif.emergencyTitle"),
-      notifBody: t("notif.emergencyBody"),
-    });
-  }
+  await startSenderFromStoredState();
+}
+
+// Avvia il sender nativo leggendo tutto dallo stato persistito (cookie,
+// intervallo, attività). Usato da startTracking E dall'auto-riparazione del
+// task: se il processo viene riciclato (o la sessione precede l'install del
+// build), il sender deve ripartire da contesto headless, senza UI.
+async function startSenderFromStoredState(): Promise<void> {
+  if (!hasNativeSender()) return;
+  const settings = await loadSettings();
+  const cookie = (await AsyncStorage.getItem("session_cookie")) ?? "";
+  const attivita = (await loadSession())?.attivita ?? "";
+  startNativeSender({
+    url: `${API_BASE}/api/gps`,
+    cookie,
+    intervalMs: settings.gpsIntervalMs ?? GPS_INTERVAL_FALLBACK_MS,
+    attivita,
+    notifTitle: t("notif.emergencyTitle"),
+    notifBody: t("notif.emergencyBody"),
+  });
 }
 
 export async function stopTracking(): Promise<void> {
