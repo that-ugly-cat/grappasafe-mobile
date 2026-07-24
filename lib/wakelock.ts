@@ -11,6 +11,9 @@ let native: {
   release: () => void;
   isIgnoringBatteryOptimizations?: () => boolean;
   requestIgnoreBatteryOptimizations?: () => void;
+  startAccel?: () => void;
+  stopAccel?: () => void;
+  getAndResetPeak?: () => number;
 } | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -55,5 +58,40 @@ export function requestIgnoreBatteryOptimizations(): void {
     native?.requestIgnoreBatteryOptimizations?.();
   } catch {
     /* modulo assente: no-op */
+  }
+}
+
+// Accelerometro nativo — sostituisce expo-sensors per il rilevamento impatti:
+// expo-sensors si disiscrive dal sensore quando l'app va in background
+// (schermo spento), quindi i picchi si perdevano proprio nello scenario
+// bersaglio. Il listener nativo, col partial wake lock, vive sempre.
+
+/** True se il build include l'accelerometro nativo. */
+export function hasNativeAccel(): boolean {
+  return typeof native?.getAndResetPeak === "function";
+}
+
+export function startNativeAccel(): void {
+  try {
+    native?.startAccel?.();
+  } catch {
+    /* modulo assente: no-op */
+  }
+}
+
+export function stopNativeAccel(): void {
+  try {
+    native?.stopAccel?.();
+  } catch {
+    /* idem */
+  }
+}
+
+/** Picco |accel| in g dall'ultima lettura; azzera la finestra. 1.0 = riposo. */
+export function getAndResetNativePeak(): number {
+  try {
+    return native?.getAndResetPeak?.() ?? 1.0;
+  } catch {
+    return 1.0;
   }
 }

@@ -2,14 +2,22 @@ package expo.modules.wakelock
 
 import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlin.math.sqrt
 
 class WakelockModule : Module() {
   private var wakeLock: PowerManager.WakeLock? = null
+  private var sensorManager: SensorManager? = null
+  private var accelListener: SensorEventListener? = null
+  @Volatile private var peakG: Double = 1.0
 
   override fun definition() = ModuleDefinition {
     // Nome usato da JS: requireNativeModule("WakeLock").
@@ -50,6 +58,55 @@ class WakelockModule : Module() {
         val pm = ctx.getSystemService(Context.POWER_SERVICE) as? PowerManager
         pm?.isIgnoringBatteryOptimizations(ctx.packageName) ?: true
       }
+    }
+
+    // ── Accelerometro nativo ─────────────────────────────────────────────────
+    // expo-sensors si DISISCRIVE dal sensore quando l'Activity va in background
+    // (OnActivityEntersBackground → stopObserving): a schermo spento i picchi
+    // d'impatto vanno persi anche con la CPU sveglia. Qui il listener è
+    // registrato direttamente sul SensorManager, slegato dal lifecycle: col
+    // partial wake lock continua a consegnare anche a schermo spento.
+    // Il picco si accumula qui in nativo; il task JS lo preleva a ogni tick GPS
+    // con getAndResetPeak. Idempotente.
+    Function("startAccel") {
+      if (accelListener == null) {
+        val ctx = appContext.reactContext
+        if (ctx != null) {
+          val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+          val sensor = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+          if (sm != null && sensor != null) {
+            val listener = object : SensorEventListener {
+              override fun onSensorChanged(event: SensorEvent) {
+                val x = event.values[0].toDouble()
+                val y = event.values[1].toDouble()
+                val z = event.values[2].toDouble()
+                // Modulo in g (1.0 = a riposo), come si aspetta il server.
+                val g = sqrt(x * x + y * y + z * z) / SensorManager.GRAVITY_EARTH
+                if (g > peakG) peakG = g
+              }
+              override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+            }
+            // SENSOR_DELAY_GAME (~20ms): abbastanza fitto da catturare lo
+            // spike di un urto, che dura pochi centisecondi.
+            sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
+            sensorManager = sm
+            accelListener = listener
+          }
+        }
+      }
+    }
+
+    Function("stopAccel") {
+      accelListener?.let { sensorManager?.unregisterListener(it) }
+      accelListener = null
+      peakG = 1.0
+    }
+
+    // Picco |accel| in g dall'ultima lettura; azzera la finestra.
+    Function("getAndResetPeak") {
+      val p = peakG
+      peakG = 1.0
+      p
     }
 
     // Apre il dialog di sistema "consenti esecuzione in background" per l'app.

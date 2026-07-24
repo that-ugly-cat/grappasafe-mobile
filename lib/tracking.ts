@@ -8,8 +8,11 @@ import {
   enqueueGps, flushGps, loadQueuedEmergency, clearQueuedEmergency,
   markEmergencyFailed, clearEmergencyFailed,
 } from "./outbox";
-import { acquireWakeLock, releaseWakeLock } from "./wakelock";
-import { loadSettings, loadAreaConfig } from "./store";
+import {
+  acquireWakeLock, releaseWakeLock,
+  hasNativeAccel, startNativeAccel, stopNativeAccel, getAndResetNativePeak,
+} from "./wakelock";
+import { loadSettings, loadAreaConfig, loadSession } from "./store";
 import { t } from "./i18n";
 
 export const LOCATION_TASK = "grappasafe-location";
@@ -19,31 +22,56 @@ const OUT_OF_ZONE_RENOTIFY_MS = 5 * 60_000; // ri-avvisa al più ogni 5 minuti
 // L'impatto lo decide il server, con una soglia per attività. L'app manda il
 // PICCO di accelerazione dall'ultimo invio GPS (non l'istantaneo), così lo
 // spike dell'urto non va perso tra un tick e l'altro.
-let _lastAccel = { x: 0, y: 0, z: 1 };
-let _accelPeak = 1.0; // picco |accel| in g dall'ultimo invio (1g = a riposo)
+//
+// Il picco lo accumula il modulo NATIVO (wakelock): expo-sensors si disiscrive
+// dal sensore quando l'app va in background (schermo spento) — proprio lo
+// scenario bersaglio. Il fallback JS via expo-sensors resta per Expo Go e
+// build vecchi: funziona solo a schermo acceso.
+let _accelStarted = false;
+let _accelPeak = 1.0; // picco del fallback JS (1g = a riposo)
 let _accelSub: ReturnType<typeof Accelerometer.addListener> | null = null;
 
 export function startAccelerometer() {
-  if (_accelSub) return; // idempotente: non orfanare il listener già attivo
+  if (_accelStarted) return; // idempotente: non orfanare il listener già attivo
+  _accelStarted = true;
+  if (hasNativeAccel()) {
+    startNativeAccel();
+    return;
+  }
   Accelerometer.setUpdateInterval(100);
   _accelSub = Accelerometer.addListener(({ x, y, z }) => {
-    _lastAccel = { x, y, z };
     const mag = Math.sqrt(x * x + y * y + z * z);
     if (mag > _accelPeak) _accelPeak = mag;
   });
 }
 
 export function stopAccelerometer() {
+  _accelStarted = false;
+  stopNativeAccel();
   _accelSub?.remove();
   _accelSub = null;
+  _accelPeak = 1.0;
 }
+
+/** Picco |accel| in g dall'ultimo prelievo; apre una nuova finestra. */
+function takeAccelPeak(): number {
+  if (hasNativeAccel()) return getAndResetNativePeak();
+  const p = _accelPeak;
+  _accelPeak = 1.0;
+  return p;
+}
+
+// FLYING ha senso solo per le attività di volo: per un escursionista in auto
+// (o un ciclista in discesa) sopra i 18 km/h dichiarare FLYING confonderebbe
+// la macchina a stati del server.
+const AIRBORNE = new Set(["PARAGLIDER", "HANGGLIDER"]);
 
 function motionState(
   speed_ms: number | null,
-  alt_m: number | null
+  attivita: string
 ): "STATIONARY" | "MOVING" | "FLYING" {
   if (speed_ms === null) return "STATIONARY";
-  if (speed_ms > 5) return "FLYING"; // > 18 km/h
+  if (AIRBORNE.has(attivita) && speed_ms > 5) return "FLYING"; // > 18 km/h
   if (speed_ms > 0.5) return "MOVING";
   return "STATIONARY";
 }
@@ -184,12 +212,11 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
   // startTracking() (contesto UI). Se Android ricicla il processo durante una
   // sessione lunga (schermo spento, telefono in tasca — lo scenario bersaglio),
   // il task riparte in un contesto HEADLESS con lo stato del modulo azzerato
-  // (_accelSub=null, _accelPeak=1.0) e startTracking() NON viene rieseguito.
-  // Senza questo, il listener non verrebbe mai riregistrato: ogni pin partirebbe
-  // con accel_magnitude=1.0 → rilevamento impatto morto mentre il GPS continua a
-  // scorrere (fallimento mascherato). Idempotente: nel caso normale _accelSub è
-  // già valorizzato e questo è un no-op.
-  if (!_accelSub) {
+  // (_accelStarted=false) e startTracking() NON viene rieseguito. Senza questo,
+  // il listener non verrebbe mai riregistrato: ogni pin partirebbe con
+  // accel_magnitude=1.0 → rilevamento impatto morto mentre il GPS continua a
+  // scorrere (fallimento mascherato). Idempotente: nel caso normale è un no-op.
+  if (!_accelStarted) {
     startAccelerometer();
     acquireWakeLock();
   }
@@ -205,8 +232,8 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
   // Il picco d'accelerazione copre la finestra dall'ultimo invio: va sul punto
   // più RECENTE del batch; per i punti arretrati non abbiamo il dettaglio
   // per-punto, quindi 1.0 (riposo) — meglio nessun falso impatto retrodatato.
-  const peak = _accelPeak;
-  _accelPeak = 1.0; // apri una nuova finestra di picco per il prossimo invio
+  const peak = takeAccelPeak();
+  const attivita = (await loadSession())?.attivita ?? "";
 
   const payloads: GpsPayload[] = points.map((loc, i) => {
     const { latitude: lat, longitude: lon, altitude, speed } = loc.coords;
@@ -217,7 +244,7 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
       lon,
       alt_m,
       speed_ms,
-      motion_state: motionState(speed_ms, alt_m),
+      motion_state: motionState(speed_ms, attivita),
       impact_detected: false, // l'impatto lo decide il server dal picco
       accel_magnitude: i === points.length - 1 ? peak : 1.0,
       battery_pct: null, // expo-battery opzionale, non incluso di default
