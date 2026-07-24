@@ -20,7 +20,8 @@
         "NSUserNotificationUsageDescription": "GrappaSafe usa le notifiche per gli allarmi di emergenza.",
         "UIBackgroundModes": [
           "location",
-          "fetch"
+          "fetch",
+          "audio"
         ]
       }
     },

@@ -30,7 +30,10 @@ export default function AlarmSound() {
         await setAudioModeAsync({
           playsInSilentMode: true,        // iOS: suona anche con l'interruttore silenzioso
           interruptionMode: "doNotMix",   // prende il focus audio
-          shouldPlayInBackground: false,
+          // La sirena deve continuare anche se l'utente spegne lo schermo o
+          // l'app finisce in background durante l'allarme: è il punto stesso
+          // della sirena (richiamare l'attenzione finché non si risponde).
+          shouldPlayInBackground: true,
         });
         const cur = await VolumeManager.getVolume();
         prevVolume.current = typeof cur?.volume === "number" ? cur.volume : null;
