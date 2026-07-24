@@ -80,7 +80,13 @@ export async function downloadMap(
     const info = await FileSystem.getInfoAsync(dest);
     if (!info.exists) {
       try {
-        await FileSystem.downloadAsync(`${API_BASE}/map-tiles/${z}/${x}/${y}.png`, dest);
+        // downloadAsync NON fallisce sugli errori HTTP: un 404 salverebbe la
+        // pagina d'errore come tile .png (quadrato corrotto in mappa, per
+        // sempre — il retry la vede "già presente"). Controlla lo status.
+        const res = await FileSystem.downloadAsync(`${API_BASE}/map-tiles/${z}/${x}/${y}.png`, dest);
+        if (res.status !== 200) {
+          await FileSystem.deleteAsync(dest, { idempotent: true }).catch(() => {});
+        }
       } catch {
         /* salta la singola tile, non bloccare l'intero download */
       }
