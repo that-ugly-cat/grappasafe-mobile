@@ -25,6 +25,7 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { confirmEmergency, cancelEmergency } from "../lib/api";
 import { getCurrentPosition } from "../lib/tracking";
+import { stopNativeSiren } from "../lib/wakelock";
 import { playConfirm } from "../lib/sfx";
 import { useT } from "../lib/i18n";
 import SafeAlarmSound from "../components/SafeAlarmSound";
@@ -72,6 +73,9 @@ export default function AlarmScreen() {
   // Avvia vibrazione SOS loop + countdown (la sirena parte col montaggio di
   // <SafeAlarmSound>).
   useEffect(() => {
+    // Handoff dalla sirena nativa (loop a schermo spento, avviata dal sender):
+    // da qui suona quella JS, che si ferma con la risposta dell'utente.
+    stopNativeSiren();
     Vibration.vibrate(SOS_PATTERN, true);
 
     intervalRef.current = setInterval(() => {

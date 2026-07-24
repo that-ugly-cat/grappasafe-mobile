@@ -22,6 +22,7 @@ let native: {
   stopSender?: () => void;
   isSenderRunning?: () => boolean;
   getLastResponse?: () => string;
+  stopSiren?: () => void;
 } | null = null;
 
 export interface WakelockDiagnostics {
@@ -173,5 +174,15 @@ export function getNativeLastResponse(): string {
     return native?.getLastResponse?.() ?? "";
   } catch {
     return "";
+  }
+}
+
+/** Ferma la sirena nativa in loop: la schermata di allarme la chiama al mount
+ *  (da lì in poi suona la sirena JS, che si ferma con la risposta). */
+export function stopNativeSiren(): void {
+  try {
+    native?.stopSiren?.();
+  } catch {
+    /* modulo assente: no-op */
   }
 }

@@ -12,7 +12,10 @@ import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Handler
@@ -66,11 +69,18 @@ class WakelockModule : Module() {
   @Volatile private var lastResponse = ""
   // Volume sveglia precedente, da ripristinare quando il pending rientra.
   private var prevAlarmVolume: Int = -1
+  // Sirena in loop per la pre-emergenza a schermo spento. Il suono della
+  // NOTIFICA parte una volta sola (6 s di alarm.wav): col telefono in tasca
+  // non basta. Questa suona in loop finché il pending non si risolve, la
+  // schermata di allarme non la rileva (passa alla sirena JS), o scatta il
+  // tetto di sicurezza.
+  private var siren: MediaPlayer? = null
 
   companion object {
     private const val QUEUE_CAP = 1000       // ~4h a 15s: oltre, si scarta il più vecchio
     private const val EMERGENCY_NOTIF_ID = 0x6E
     private const val EMERGENCY_CHANNEL = "emergency-v3"
+    private const val SIREN_MAX_MS = 10 * 60_000L  // backstop: mai una sirena infinita
   }
 
   override fun definition() = ModuleDefinition {
@@ -198,6 +208,7 @@ class WakelockModule : Module() {
 
     Function("stopSender") {
       senderRunning = false
+      stopSiren()
       senderHandler?.removeCallbacksAndMessages(null)
       unregisterLocationListeners()
       senderThread?.quitSafely()
@@ -209,6 +220,10 @@ class WakelockModule : Module() {
     }
 
     Function("isSenderRunning") { senderRunning }
+
+    // La schermata di allarme JS la chiama al mount: la sirena nativa passa il
+    // testimone a quella JS (che si ferma con la risposta dell'utente).
+    Function("stopSiren") { stopSiren() }
 
     // Ultima risposta JSON di /api/gps vista dal sender: il task JS la legge
     // (quando è sveglio) per allineare lo stato pending_emergency locale.
@@ -409,10 +424,12 @@ class WakelockModule : Module() {
       if (pending != null) {
         if (!pendingNotified) {
           postEmergencyNotification()
+          startSiren()
           pendingNotified = true
         }
       } else if (pendingNotified) {
         cancelEmergencyNotification()
+        stopSiren()
         pendingNotified = false
       }
     } catch (t: Throwable) {
@@ -457,6 +474,49 @@ class WakelockModule : Module() {
       .setCategory(Notification.CATEGORY_ALARM)
       .build()
     nm.notify(EMERGENCY_NOTIF_ID, n)
+  }
+
+  // Sirena in loop sullo stream SVEGLIA (il volume è già al massimo, forzato
+  // in postEmergencyNotification). Sorgente: la stessa alarm.wav della
+  // notifica (copiata in res/raw dal plugin expo-notifications); se per
+  // qualsiasi motivo manca, la suoneria sveglia di sistema.
+  @Synchronized
+  private fun startSiren() {
+    if (siren != null) return
+    val ctx = appContext.reactContext?.applicationContext ?: return
+    try {
+      val mp = MediaPlayer()
+      mp.setAudioAttributes(
+        AudioAttributes.Builder()
+          .setUsage(AudioAttributes.USAGE_ALARM)
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .build()
+      )
+      val resId = ctx.resources.getIdentifier("alarm", "raw", ctx.packageName)
+      if (resId != 0) {
+        ctx.resources.openRawResourceFd(resId).use { afd ->
+          mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+        }
+      } else {
+        mp.setDataSource(ctx, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
+      }
+      mp.isLooping = true
+      mp.prepare()
+      mp.start()
+      siren = mp
+      senderHandler?.postDelayed({ stopSiren() }, SIREN_MAX_MS)
+    } catch (t: Throwable) {
+      try { siren?.release() } catch (_: Throwable) {}
+      siren = null
+    }
+  }
+
+  @Synchronized
+  private fun stopSiren() {
+    val mp = siren ?: return
+    siren = null
+    try { mp.stop() } catch (_: Throwable) {}
+    try { mp.release() } catch (_: Throwable) {}
   }
 
   private fun cancelEmergencyNotification() {
