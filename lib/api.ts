@@ -283,6 +283,23 @@ export interface Profile {
   lingua: string;
 }
 
+// Esito del check di autenticazione all'avvio. Distinguere "sessione scaduta"
+// da "rete assente" è vitale: in montagna senza segnale l'app deve comunque
+// aprire mappa e SOS con l'utente in cache, non buttare al login (dove offline
+// non si può fare nulla).
+export type AuthCheck = "ok" | "unauthorized" | "network";
+
+export async function checkAuth(): Promise<AuthCheck> {
+  try {
+    const res = await request("/api/me");
+    if (res.status === 401) return "unauthorized";
+    // Anche un 5xx passa: un errore del server non deve sloggare l'utente.
+    return "ok";
+  } catch {
+    return "network";
+  }
+}
+
 export async function getMe(): Promise<Profile | null> {
   try {
     const res = await request("/api/me");

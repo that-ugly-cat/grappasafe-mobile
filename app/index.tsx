@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loadUser } from "../lib/store";
-import { getMe } from "../lib/api";
+import { checkAuth } from "../lib/api";
 
 export default function SplashRedirect() {
   useEffect(() => {
@@ -12,13 +13,22 @@ export default function SplashRedirect() {
         router.replace("/login");
         return;
       }
-      // verifica che la sessione server sia ancora valida
-      const me = await getMe();
-      if (!me) {
+      // Emergenza pending (notifica toccata ad app chiusa): niente giro di
+      // verifica sessione — dritto alla mappa, il cui poll apre subito /alarm.
+      // Ogni secondo qui è un secondo del countdown di conferma.
+      const pending = await AsyncStorage.getItem("pending_emergency");
+      if (pending) {
+        router.replace("/map");
+        return;
+      }
+      // Verifica la sessione server. Solo un 401 esplicito manda al login:
+      // offline (o server giù) si prosegue con l'utente in cache — l'app deve
+      // restare usabile in montagna senza segnale (mappa offline, SOS in coda).
+      const auth = await checkAuth();
+      if (auth === "unauthorized") {
         router.replace("/login");
         return;
       }
-      // La MapScreen gestisce da sé lo stato (idle / live / emergency).
       router.replace("/map");
     })();
   }, []);
