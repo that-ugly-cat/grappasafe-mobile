@@ -236,6 +236,10 @@ const it: Table = {
   "activity.title": "Cosa stai facendo?",
   "activity.cannotStart": "Impossibile avviare la sessione",
   "activity.needBgPermission": "GrappaSafe ha bisogno del permesso di posizione \"Consenti sempre\" per monitorarti a schermo spento. Concedilo nelle impostazioni e riprova.",
+  "activity.batteryTitle": "Esecuzione in background",
+  "activity.batteryMsg": "Il telefono limita GrappaSafe a schermo spento: i punti GPS partirebbero solo allo sblocco. Consenti l’esecuzione senza limitazioni per il monitoraggio in tempo reale.",
+  "activity.batteryFix": "Consenti (consigliato)",
+  "activity.batteryContinue": "Continua comunque",
 
   // emergency overlay
   "emergency.manualTitle": "Emergenza manuale",
@@ -399,6 +403,10 @@ const en: Table = {
   "activity.title": "What are you doing?",
   "activity.cannotStart": "Could not start the session",
   "activity.needBgPermission": "GrappaSafe needs the \"Allow all the time\" location permission to monitor you with the screen off. Grant it in settings and try again.",
+  "activity.batteryTitle": "Background execution",
+  "activity.batteryMsg": "Your phone restricts GrappaSafe when the screen is off: GPS points would only be sent on unlock. Allow unrestricted background use for real-time monitoring.",
+  "activity.batteryFix": "Allow (recommended)",
+  "activity.batteryContinue": "Continue anyway",
 
   "emergency.manualTitle": "Manual emergency",
   "emergency.holdInstr": "Hold anywhere for 3 seconds\nto report an emergency",
@@ -559,6 +567,10 @@ const de: Table = {
   "activity.title": "Was machst du gerade?",
   "activity.cannotStart": "Sitzung konnte nicht gestartet werden",
   "activity.needBgPermission": "GrappaSafe benötigt die Standortberechtigung \"Immer zulassen\", um dich bei ausgeschaltetem Bildschirm zu überwachen. Erteile sie in den Einstellungen und versuche es erneut.",
+  "activity.batteryTitle": "Hintergrundausführung",
+  "activity.batteryMsg": "Dein Telefon schränkt GrappaSafe bei ausgeschaltetem Bildschirm ein: GPS-Punkte würden erst beim Entsperren gesendet. Erlaube die uneingeschränkte Hintergrundnutzung für Echtzeit-Überwachung.",
+  "activity.batteryFix": "Erlauben (empfohlen)",
+  "activity.batteryContinue": "Trotzdem fortfahren",
 
   "emergency.manualTitle": "Manueller Notruf",
   "emergency.holdInstr": "Halte 3 Sekunden lang irgendwo gedrückt,\num einen Notfall zu melden",
@@ -719,6 +731,10 @@ const fr: Table = {
   "activity.title": "Que faites-vous ?",
   "activity.cannotStart": "Impossible de démarrer la session",
   "activity.needBgPermission": "GrappaSafe a besoin de l’autorisation de localisation \"Toujours autoriser\" pour vous suivre écran éteint. Accordez-la dans les réglages et réessayez.",
+  "activity.batteryTitle": "Exécution en arrière-plan",
+  "activity.batteryMsg": "Votre téléphone limite GrappaSafe écran éteint : les points GPS ne partiraient qu’au déverrouillage. Autorisez l’exécution sans restriction pour un suivi en temps réel.",
+  "activity.batteryFix": "Autoriser (recommandé)",
+  "activity.batteryContinue": "Continuer quand même",
 
   "emergency.manualTitle": "Urgence manuelle",
   "emergency.holdInstr": "Maintenez appuyé n'importe où pendant 3 secondes\npour signaler une urgence",
@@ -879,6 +895,10 @@ const es: Table = {
   "activity.title": "¿Qué estás haciendo?",
   "activity.cannotStart": "No se pudo iniciar la sesión",
   "activity.needBgPermission": "GrappaSafe necesita el permiso de ubicación \"Permitir siempre\" para monitorizarte con la pantalla apagada. Concédelo en los ajustes e inténtalo de nuevo.",
+  "activity.batteryTitle": "Ejecución en segundo plano",
+  "activity.batteryMsg": "Tu teléfono limita GrappaSafe con la pantalla apagada: los puntos GPS solo se enviarían al desbloquear. Permite la ejecución sin restricciones para el monitoreo en tiempo real.",
+  "activity.batteryFix": "Permitir (recomendado)",
+  "activity.batteryContinue": "Continuar de todos modos",
 
   "emergency.manualTitle": "Emergencia manual",
   "emergency.holdInstr": "Mantén pulsado en cualquier sitio 3 segundos\npara señalar una emergencia",
@@ -1039,6 +1059,10 @@ const nl: Table = {
   "activity.title": "Wat ga je doen?",
   "activity.cannotStart": "Kon de sessie niet starten",
   "activity.needBgPermission": "GrappaSafe heeft de locatietoestemming \"Altijd toestaan\" nodig om je met het scherm uit te volgen. Geef die in de instellingen en probeer opnieuw.",
+  "activity.batteryTitle": "Uitvoering op de achtergrond",
+  "activity.batteryMsg": "Je telefoon beperkt GrappaSafe met het scherm uit: GPS-punten zouden pas bij het ontgrendelen verzonden worden. Sta onbeperkt achtergrondgebruik toe voor realtime monitoring.",
+  "activity.batteryFix": "Toestaan (aanbevolen)",
+  "activity.batteryContinue": "Toch doorgaan",
 
   "emergency.manualTitle": "Handmatig noodgeval",
   "emergency.holdInstr": "Houd 3 seconden ergens ingedrukt\nom een noodgeval te melden",
@@ -1199,6 +1223,10 @@ const pl: Table = {
   "activity.title": "Co robisz?",
   "activity.cannotStart": "Nie udało się rozpocząć sesji",
   "activity.needBgPermission": "GrappaSafe potrzebuje uprawnienia lokalizacji \"Zawsze zezwalaj\", aby monitorować Cię przy wyłączonym ekranie. Nadaj je w ustawieniach i spróbuj ponownie.",
+  "activity.batteryTitle": "Działanie w tle",
+  "activity.batteryMsg": "Telefon ogranicza GrappaSafe przy wyłączonym ekranie: punkty GPS wysyłałyby się dopiero po odblokowaniu. Zezwól na nieograniczone działanie w tle, aby monitorowanie działało w czasie rzeczywistym.",
+  "activity.batteryFix": "Zezwól (zalecane)",
+  "activity.batteryContinue": "Kontynuuj mimo to",
 
   "emergency.manualTitle": "Ręczne wezwanie pomocy",
   "emergency.holdInstr": "Przytrzymaj w dowolnym miejscu przez 3 sekundy,\naby zgłosić nagły wypadek",
@@ -1359,6 +1387,10 @@ const cs: Table = {
   "activity.title": "Co děláte?",
   "activity.cannotStart": "Relaci se nepodařilo spustit",
   "activity.needBgPermission": "GrappaSafe potřebuje oprávnění polohy \"Povolit vždy\", aby vás mohl sledovat při zhasnuté obrazovce. Udělte ho v nastavení a zkuste to znovu.",
+  "activity.batteryTitle": "Běh na pozadí",
+  "activity.batteryMsg": "Telefon omezuje GrappaSafe při zhasnuté obrazovce: body GPS by se odeslaly až po odemčení. Povolte neomezený běh na pozadí pro sledování v reálném čase.",
+  "activity.batteryFix": "Povolit (doporučeno)",
+  "activity.batteryContinue": "Přesto pokračovat",
 
   "emergency.manualTitle": "Ruční nouze",
   "emergency.holdInstr": "Podržte kdekoli 3 sekundy\npro nahlášení nouze",

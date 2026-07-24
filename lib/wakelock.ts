@@ -6,7 +6,12 @@
 //
 // Il modulo nativo (`modules/wakelock`) è caricato con require protetto: finché
 // non è compilato nel build, acquire/release sono no-op silenziosi — nessun crash.
-let native: { acquire: () => void; release: () => void } | null = null;
+let native: {
+  acquire: () => void;
+  release: () => void;
+  isIgnoringBatteryOptimizations?: () => boolean;
+  requestIgnoreBatteryOptimizations?: () => void;
+} | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { requireNativeModule } = require("expo-modules-core");
@@ -28,5 +33,27 @@ export function releaseWakeLock(): void {
     native?.release();
   } catch {
     /* idem */
+  }
+}
+
+// Esenzione dall'ottimizzazione batteria. Senza, in (light) Doze Android
+// sospende la rete e può congelare l'accelerometro: i pin si accumulano in
+// outbox e partono solo allo sblocco — il monitoraggio live è cieco proprio
+// quando serve. In dubbio (modulo assente, build vecchio senza la funzione)
+// si risponde true: meglio nessun prompt che un prompt che non può funzionare.
+export function isIgnoringBatteryOptimizations(): boolean {
+  try {
+    return native?.isIgnoringBatteryOptimizations?.() ?? true;
+  } catch {
+    return true;
+  }
+}
+
+/** Apre il dialog di sistema "consenti esecuzione in background". */
+export function requestIgnoreBatteryOptimizations(): void {
+  try {
+    native?.requestIgnoreBatteryOptimizations?.();
+  } catch {
+    /* modulo assente: no-op */
   }
 }

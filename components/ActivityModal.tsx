@@ -1,11 +1,14 @@
 import { useState } from "react";
 import {
   Modal, View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, Alert, ActivityIndicator,
+  StyleSheet, Alert, ActivityIndicator, Platform,
 } from "react-native";
 import { startSession, endSession, Attivita } from "../lib/api";
 import { saveSession, clearSession } from "../lib/store";
 import { startTracking, requestPermissions } from "../lib/tracking";
+import {
+  isIgnoringBatteryOptimizations, requestIgnoreBatteryOptimizations,
+} from "../lib/wakelock";
 import { useT } from "../lib/i18n";
 
 const ACTIVITIES: Attivita[] = [
@@ -32,6 +35,24 @@ export default function ActivityModal({ visible, onClose, onStarted }: Props) {
       if (!granted) {
         Alert.alert(t("common.warning"), t("activity.needBgPermission"));
         return;
+      }
+      // Esenzione dall'ottimizzazione batteria: senza, in Doze la rete è
+      // sospesa e i pin partono solo allo sblocco dello schermo (e i sensori
+      // possono congelarsi). Per un'app di sicurezza è un requisito, non
+      // un'ottimizzazione: si può proseguire comunque, ma avvisati.
+      if (Platform.OS === "android" && !isIgnoringBatteryOptimizations()) {
+        const proceed = await new Promise<boolean>((resolve) => {
+          Alert.alert(t("activity.batteryTitle"), t("activity.batteryMsg"), [
+            {
+              text: t("activity.batteryFix"),
+              onPress: () => { requestIgnoreBatteryOptimizations(); resolve(false); },
+            },
+            { text: t("activity.batteryContinue"), onPress: () => resolve(true) },
+          ]);
+        });
+        // L'utente è andato al dialog di sistema: concessa l'esenzione,
+        // ritoccherà l'attività e questa volta il check passerà.
+        if (!proceed) return;
       }
       const { session_id, state } = await startSession(a);
       await saveSession({
