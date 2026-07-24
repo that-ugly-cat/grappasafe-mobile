@@ -256,6 +256,11 @@ class WakelockModule : Module() {
     val looper = senderThread?.looper ?: return
     val listener = object : LocationListener {
       override fun onLocationChanged(location: Location) {
+        // Il provider passivo raccoglie anche i fix scadenti richiesti da
+        // altre app (celle/wifi, errore di centinaia di metri, senza quota):
+        // in campo producevano salti di ~3.6 km nella traccia. Un fix
+        // GNSS/fused buono ha accuracy di pochi metri: sopra i 100 m si scarta.
+        if (location.hasAccuracy() && location.accuracy > 100f) return
         lastFix = location
       }
     }
@@ -341,6 +346,7 @@ class WakelockModule : Module() {
       put("lat", fix.latitude)
       put("lon", fix.longitude)
       put("alt_m", if (fix.hasAltitude()) fix.altitude else JSONObject.NULL)
+      put("accuracy_m", if (fix.hasAccuracy()) fix.accuracy.toDouble() else JSONObject.NULL)
       put("speed_ms", speed ?: JSONObject.NULL)
       put("motion_state", motion)
       put("impact_detected", false) // l'impatto lo decide il server dal picco
