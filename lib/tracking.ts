@@ -89,7 +89,9 @@ async function checkGeofence(lat: number, lon: number): Promise<void> {
       sound: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
-    trigger: null,
+    // Canale HIGH dedicato (creato in _layout): sul canale default Android può
+    // non suonare a schermo spento.
+    trigger: { channelId: "alerts-v1" },
   });
   await AsyncStorage.setItem("out_of_zone_notified", String(now));
 }
@@ -214,23 +216,29 @@ async function handleLocationUpdate(data: unknown, error: unknown): Promise<void
   _accelPeak = 1.0; // apri una nuova finestra di picco per il prossimo invio
 
   // Geofence locale — indipendente dall'esito della rete.
-  await checkGeofence(lat, lon);
+  await checkGeofence(lat, lon).catch(() => {});
 
+  // Ogni passo è isolato nel proprio try: prima erano in un unico blocco, e un
+  // errore nello svuotamento della coda (passo 1) saltava anche l'invio del
+  // punto corrente SENZA accodarlo → pin perso in silenzio.
+
+  // 1. Svuota la coda offline PRIMA del punto nuovo (i pin vecchi hanno ts più
+  //    vecchi: la macchina a stati server-side vuole timestamp monotoni). E
+  //    ritenta un eventuale SOS manuale rimasto in coda.
+  try { await flushGps(sendGps, handleGpsResponse); } catch {}
+  try { await flushQueuedEmergency(); } catch {}
+
+  // 2. Invia il punto corrente (sendGps non lancia mai: esiti tipizzati).
   try {
-    // 1. Svuota la coda offline PRIMA del punto nuovo (i pin vecchi hanno ts più
-    //    vecchi: la macchina a stati server-side vuole timestamp monotoni). E
-    //    ritenta un eventuale SOS manuale rimasto in coda.
-    await flushGps(sendGps, handleGpsResponse);
-    await flushQueuedEmergency();
-
-    // 2. Invia il punto corrente.
     const res = await sendGps(payload);
     if (res.kind === "network") {
       await enqueueGps(payload); // niente rete: in coda, non perso
       return;
     }
     if (res.kind === "rejected") return; // server raggiungibile ma rifiuta → scarta
-    await handleGpsResponse(res.response);
+    // Il punto è già consegnato: un errore nella gestione della risposta non
+    // deve rimetterlo in coda (duplicato) né far cadere il giro.
+    try { await handleGpsResponse(res.response); } catch {}
   } catch {
     // silenzioso — prossimo ciclo riprova
   }
@@ -288,11 +296,24 @@ export async function stopTracking(): Promise<void> {
   releaseWakeLock();
 }
 
+// Posizione per SOS/conferma emergenza. Un fix GPS a freddo può richiedere
+// decine di secondi e getCurrentPositionAsync non ha timeout: un SOS non può
+// aspettare. Corsa a 8s sul fix fresco; se perde, ultima posizione nota (≤5
+// minuti — durante una sessione il task GPS la tiene freschissima); poi null.
+const POSITION_TIMEOUT_MS = 8_000;
+
 export async function getCurrentPosition(): Promise<Location.LocationObject | null> {
   try {
-    return await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
+    const fresh = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), POSITION_TIMEOUT_MS)),
+    ]);
+    if (fresh) return fresh;
+  } catch {
+    /* GPS non disponibile: prova comunque l'ultima nota */
+  }
+  try {
+    return await Location.getLastKnownPositionAsync({ maxAge: 5 * 60_000 });
   } catch {
     return null;
   }

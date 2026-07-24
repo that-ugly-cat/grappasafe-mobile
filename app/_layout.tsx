@@ -50,6 +50,16 @@ export default function RootLayout() {
           flags:       { enforceAudibility: true, requestHardwareAudioVideoSynchronization: false },
         },
       });
+
+      // Canale per gli avvisi non-emergenza (es. fuori zona): HIGH con suono di
+      // default. Senza un canale esplicito queste notifiche finivano sul canale
+      // "default" di sistema, che a schermo spento può essere silenzioso.
+      Notifications.setNotificationChannelAsync("alerts-v1", {
+        name:             t("notif.alertsChannelName"),
+        importance:       Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        sound:            "default",
+      });
     }
 
     // Richiede i permessi per le notifiche (necessario su iOS, best-practice su Android 13+)

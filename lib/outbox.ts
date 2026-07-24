@@ -60,7 +60,12 @@ export async function flushGps(
       await saveGps(q);
       return false;
     }
-    if (res.kind === "ok") await onResponse(res.response);
+    if (res.kind === "ok") {
+      // Il punto è consegnato: un errore nel gestore della risposta (es. una
+      // notifica che fallisce headless) non deve lasciare la testa in coda —
+      // al giro dopo verrebbe ri-inviata (duplicato) o bloccherebbe il flush.
+      try { await onResponse(res.response); } catch {}
+    }
     // ok o rejected: la testa esce dalla coda
     q = q.slice(1);
     await saveGps(q);
