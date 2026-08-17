@@ -353,6 +353,73 @@ export async function deleteDevice(id: number): Promise<boolean> {
   }
 }
 
+// ── Inoltro dati a sistemi terzi ────────────────────────────────────────────
+// L'inoltro lo fa il SERVER, non l'app: il trasporto vivo a schermo spento è il
+// sender nativo, che parla solo con /api/gps, e un secondo giro di rete dal
+// telefono costerebbe batteria per niente. Qui si configura solo il "dove".
+
+export interface ForwardTarget {
+  id: number;
+  name: string;
+  url: string;
+  token: string | null;
+  enabled: number;
+  min_interval_s: number;
+  last_ok_at: string | null;
+  last_error: string | null;
+  last_error_at: string | null;
+}
+
+export async function getForwardTargets(): Promise<ForwardTarget[]> {
+  try {
+    const res = await request("/api/me/forward-targets");
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function saveForwardTarget(
+  target: { name: string; url: string; token?: string; enabled?: boolean },
+  id?: number
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await request(
+      id ? `/api/me/forward-targets/${id}` : "/api/me/forward-targets",
+      { method: id ? "PUT" : "POST", body: JSON.stringify(target) }
+    );
+    if (res.ok) return { ok: true };
+    const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    return { ok: false, error: serverError(data, "settings.forwardSaveError") };
+  } catch {
+    return { ok: false, error: t("common.netError") };
+  }
+}
+
+export async function deleteForwardTarget(id: number): Promise<boolean> {
+  try {
+    const res = await request(`/api/me/forward-targets/${id}`, { method: "DELETE" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Handshake verso il sistema terzo: dice subito se il token è quello giusto,
+ *  invece di scoprirlo dopo un volo che nessuno ha visto. */
+export async function testForwardTarget(
+  id: number
+): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const res = await request(`/api/me/forward-targets/${id}/test`, { method: "POST" });
+    if (!res.ok) return { ok: false, message: `HTTP ${res.status}` };
+    return res.json();
+  } catch {
+    return { ok: false, message: t("common.netError") };
+  }
+}
+
 /** Aggiorna i campi profilo modificabili dall'utente (self-service). */
 export async function updateMe(
   profile: Partial<Omit<Profile, "id" | "username" | "is_admin">>

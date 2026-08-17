@@ -18,6 +18,8 @@ import {
 } from "../lib/store";
 import {
   getMe, updateMe, logout, getDevices, saveDevice, deleteDevice, Profile, Device,
+  getForwardTargets, saveForwardTarget, deleteForwardTarget, testForwardTarget,
+  ForwardTarget,
 } from "../lib/api";
 import {
   isMapDownloaded, downloadMap, deleteMap, getLocalManifest,
@@ -26,6 +28,10 @@ import { useT, LANGS, LANG_NAMES, getLang, setLang } from "../lib/i18n";
 import DateField from "../components/DateField";
 
 const INTERVAL_PRESETS_S = [5, 10, 15, 30, 60];
+
+// Il sistema terzo più probabile per un pilota di qui: l'utente deve incollare
+// solo il token, non indovinare un indirizzo.
+const VEDETTA_PRESET = { name: "Vedetta", url: "https://vedetta.borant.eu/api/ingest" };
 
 type ProfileForm = Pick<
   Profile,
@@ -53,6 +59,14 @@ export default function SettingsScreen() {
   const [devOgn, setDevOgn] = useState("");
   const [savingDevice, setSavingDevice] = useState(false);
   const [showOgn, setShowOgn] = useState(false);
+  const [targets, setTargets] = useState<ForwardTarget[]>([]);
+  const [showFwdForm, setShowFwdForm] = useState(false);
+  const [editFwdId, setEditFwdId] = useState<number | null>(null);
+  const [fwdName, setFwdName] = useState("");
+  const [fwdUrl, setFwdUrl] = useState("");
+  const [fwdToken, setFwdToken] = useState("");
+  const [savingFwd, setSavingFwd] = useState(false);
+  const [testingFwd, setTestingFwd] = useState<number | null>(null);
   const [showPerms, setShowPerms] = useState(false);
   // null = stato non ancora noto (o non verificabile su questo build)
   const [permLoc, setPermLoc] = useState<boolean | null>(null);
@@ -64,6 +78,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     loadSettings().then(setSettings);
     refreshDevices();
+    refreshTargets();
     getMe().then((me) => {
       if (me) {
         setProfile({
@@ -173,6 +188,94 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  }
+
+  // ── Inoltro a sistemi terzi ────────────────────────────────────────────────
+
+  async function refreshTargets() {
+    setTargets(await getForwardTargets());
+  }
+
+  function openAddTarget(preset?: { name: string; url: string }) {
+    setEditFwdId(null);
+    setFwdName(preset?.name ?? "");
+    setFwdUrl(preset?.url ?? "");
+    setFwdToken("");
+    setShowFwdForm(true);
+  }
+
+  function openEditTarget(tg: ForwardTarget) {
+    setEditFwdId(tg.id);
+    setFwdName(tg.name);
+    setFwdUrl(tg.url);
+    setFwdToken(tg.token || "");
+    setShowFwdForm(true);
+  }
+
+  async function saveTargetForm() {
+    const name = fwdName.trim();
+    const url = fwdUrl.trim();
+    if (!name || !url.startsWith("https://")) {
+      Alert.alert(t("common.warning"), t("settings.forwardNameRequired"));
+      return;
+    }
+    setSavingFwd(true);
+    try {
+      // In modifica si conserva l'interruttore com'è: salvare i campi non deve
+      // riaccendere un inoltro che l'utente aveva spento.
+      const current = targets.find((x) => x.id === editFwdId);
+      const res = await saveForwardTarget(
+        { name, url, token: fwdToken.trim(), enabled: current ? !!current.enabled : true },
+        editFwdId ?? undefined
+      );
+      if (!res.ok) {
+        Alert.alert(t("common.error"), res.error ?? t("settings.forwardSaveError"));
+        return;
+      }
+      setShowFwdForm(false);
+      await refreshTargets();
+    } finally {
+      setSavingFwd(false);
+    }
+  }
+
+  async function toggleTarget(tg: ForwardTarget, on: boolean) {
+    // Ottimistico: l'interruttore risponde subito, poi si riallinea al server.
+    setTargets((prev) => prev.map((x) => (x.id === tg.id ? { ...x, enabled: on ? 1 : 0 } : x)));
+    await saveForwardTarget(
+      { name: tg.name, url: tg.url, token: tg.token || "", enabled: on },
+      tg.id
+    );
+    await refreshTargets();
+  }
+
+  function removeTarget(id: number) {
+    Alert.alert(t("common.delete"), t("settings.forwardDeleteMsg"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("common.delete"),
+        style: "destructive",
+        onPress: async () => {
+          await deleteForwardTarget(id);
+          await refreshTargets();
+        },
+      },
+    ]);
+  }
+
+  async function testTarget(tg: ForwardTarget) {
+    setTestingFwd(tg.id);
+    try {
+      const res = await testForwardTarget(tg.id);
+      Alert.alert(
+        tg.name,
+        res.ok ? t("settings.forwardTestOk")
+               : t("settings.forwardTestFail", { msg: res.message ?? "" })
+      );
+      await refreshTargets();
+    } finally {
+      setTestingFwd(null);
+    }
   }
 
   async function update(patch: Partial<Settings>) {
@@ -380,6 +483,78 @@ export default function SettingsScreen() {
           trackColor={{ true: "#e63946", false: "#333" }} thumbColor="#fff" />
       </View>
 
+      {/* Inoltro dati a sistemi terzi */}
+      <View style={s.divider} />
+      <Text style={s.section}>{t("settings.forwardTitle")}</Text>
+      <Text style={s.hint}>{t("settings.forwardHint")}</Text>
+      {targets.map((tg) => (
+        <View key={tg.id} style={s.fwdCard}>
+          <View style={s.rowSwitch}>
+            <View style={s.rowText}>
+              <Text style={s.deviceName}>{tg.name}</Text>
+              <Text style={tg.last_error ? s.warn : s.hint}>
+                {tg.last_error
+                  ? t("settings.forwardLastError", { msg: tg.last_error })
+                  : tg.last_ok_at
+                  ? t("settings.forwardLastOk")
+                  : t("settings.forwardNever")}
+              </Text>
+            </View>
+            <Switch
+              value={!!tg.enabled}
+              onValueChange={(v) => toggleTarget(tg, v)}
+              trackColor={{ true: "#e63946", false: "#333" }} thumbColor="#fff"
+            />
+          </View>
+          <View style={s.fwdActions}>
+            <TouchableOpacity onPress={() => openEditTarget(tg)}>
+              <Text style={s.linkAction}>{t("settings.edit")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => testTarget(tg)} disabled={testingFwd === tg.id}>
+              <Text style={s.linkAction}>
+                {testingFwd === tg.id ? "…" : t("settings.forwardTest")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => removeTarget(tg.id)}>
+              <Text style={s.linkDanger}>{t("common.delete")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ))}
+      {showFwdForm ? (
+        <View style={{ marginTop: 8 }}>
+          <TextInput
+            style={s.input} placeholder={t("settings.forwardNamePlaceholder")} placeholderTextColor="#666"
+            value={fwdName} onChangeText={setFwdName}
+          />
+          <TextInput
+            style={s.input} placeholder={t("settings.forwardUrlPlaceholder")} placeholderTextColor="#666"
+            autoCapitalize="none" autoCorrect={false} keyboardType="url"
+            value={fwdUrl} onChangeText={setFwdUrl}
+          />
+          <TextInput
+            style={s.input} placeholder={t("settings.forwardTokenPlaceholder")} placeholderTextColor="#666"
+            autoCapitalize="none" autoCorrect={false}
+            value={fwdToken} onChangeText={setFwdToken}
+          />
+          <TouchableOpacity style={[s.btn, savingFwd && s.btnDisabled]} onPress={saveTargetForm} disabled={savingFwd}>
+            <Text style={s.btnText}>{savingFwd ? t("common.saving") : t("common.save")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.btnGhost} onPress={() => setShowFwdForm(false)}>
+            <Text style={s.btnGhostText}>{t("common.cancel")}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={s.fwdActions}>
+          <TouchableOpacity style={s.btnGhost} onPress={() => openAddTarget()}>
+            <Text style={s.linkAction}>{t("settings.forwardAdd")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.btnGhost} onPress={() => openAddTarget(VEDETTA_PRESET)}>
+            <Text style={s.linkAction}>{t("settings.forwardPreset")}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Permessi e batteria */}
       <View style={s.divider} />
       <Text style={s.section}>{t("settings.permsTitle")}</Text>
@@ -563,6 +738,8 @@ const s = StyleSheet.create({
     paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#222",
   },
   deviceName: { color: "#eee", fontSize: 15, fontWeight: "600" },
+  fwdCard: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#222" },
+  fwdActions: { flexDirection: "row", alignItems: "center", gap: 20, marginTop: 8 },
   linkAction: { color: "#e63946", fontSize: 14, fontWeight: "600" },
   linkDanger: { color: "#888", fontSize: 14 },
   progressWrap: { marginTop: 16 },
