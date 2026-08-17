@@ -362,7 +362,9 @@ export interface ForwardTarget {
   id: number;
   name: string;
   url: string;
-  token: string | null;
+  /** Ultime 4 cifre del token, o null se non ce n'è uno. Il token per intero
+   *  non torna mai indietro dal server: viaggia solo quando lo si scrive. */
+  token_hint: string | null;
   enabled: number;
   min_interval_s: number;
   last_ok_at: string | null;
@@ -380,6 +382,9 @@ export async function getForwardTargets(): Promise<ForwardTarget[]> {
   }
 }
 
+/** Crea o aggiorna un target. `token` si manda **solo** quando l'utente lo
+ *  scrive: ometterlo lascia intatto quello salvato (il server non lo restituisce
+ *  mai, quindi il client non può rimandarlo indietro per sbaglio). */
 export async function saveForwardTarget(
   target: { name: string; url: string; token?: string; enabled?: boolean },
   id?: number

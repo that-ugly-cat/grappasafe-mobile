@@ -208,7 +208,8 @@ export default function SettingsScreen() {
     setEditFwdId(tg.id);
     setFwdName(tg.name);
     setFwdUrl(tg.url);
-    setFwdToken(tg.token || "");
+    // Il token non arriva dal server: campo vuoto = lascia quello che c'è.
+    setFwdToken("");
     setShowFwdForm(true);
   }
 
@@ -222,10 +223,16 @@ export default function SettingsScreen() {
     setSavingFwd(true);
     try {
       // In modifica si conserva l'interruttore com'è: salvare i campi non deve
-      // riaccendere un inoltro che l'utente aveva spento.
+      // riaccendere un inoltro che l'utente aveva spento. Il token si manda solo
+      // se l'utente l'ha scritto: vuoto significa "lascia quello di prima".
       const current = targets.find((x) => x.id === editFwdId);
+      const token = fwdToken.trim();
       const res = await saveForwardTarget(
-        { name, url, token: fwdToken.trim(), enabled: current ? !!current.enabled : true },
+        {
+          name, url,
+          ...(token ? { token } : {}),
+          enabled: current ? !!current.enabled : true,
+        },
         editFwdId ?? undefined
       );
       if (!res.ok) {
@@ -241,11 +248,9 @@ export default function SettingsScreen() {
 
   async function toggleTarget(tg: ForwardTarget, on: boolean) {
     // Ottimistico: l'interruttore risponde subito, poi si riallinea al server.
+    // Nessun token nel payload: accendere o spegnere non deve toccarlo.
     setTargets((prev) => prev.map((x) => (x.id === tg.id ? { ...x, enabled: on ? 1 : 0 } : x)));
-    await saveForwardTarget(
-      { name: tg.name, url: tg.url, token: tg.token || "", enabled: on },
-      tg.id
-    );
+    await saveForwardTarget({ name: tg.name, url: tg.url, enabled: on }, tg.id);
     await refreshTargets();
   }
 
@@ -492,6 +497,11 @@ export default function SettingsScreen() {
           <View style={s.rowSwitch}>
             <View style={s.rowText}>
               <Text style={s.deviceName}>{tg.name}</Text>
+              <Text style={tg.token_hint ? s.hint : s.warn}>
+                {tg.token_hint
+                  ? t("settings.forwardTokenSet", { hint: tg.token_hint })
+                  : t("settings.forwardNoToken")}
+              </Text>
               <Text style={tg.last_error ? s.warn : s.hint}>
                 {tg.last_error
                   ? t("settings.forwardLastError", { msg: tg.last_error })
@@ -533,7 +543,10 @@ export default function SettingsScreen() {
             value={fwdUrl} onChangeText={setFwdUrl}
           />
           <TextInput
-            style={s.input} placeholder={t("settings.forwardTokenPlaceholder")} placeholderTextColor="#666"
+            style={s.input} placeholderTextColor="#666"
+            placeholder={editFwdId
+              ? t("settings.forwardTokenKeep")
+              : t("settings.forwardTokenPlaceholder")}
             autoCapitalize="none" autoCorrect={false}
             value={fwdToken} onChangeText={setFwdToken}
           />
